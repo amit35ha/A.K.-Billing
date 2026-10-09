@@ -221,13 +221,21 @@ export default function BillPreview({ data, previewRef }) {
                 })}
                 
                 {/* Single vertical spacer row extending column borders */}
-                <tr style={{ height: `${isLastPage ? Math.max(30, 140 - pageItems.length * 22 + (extraSpacer ? Math.min(extraSpacer, 60) : 0)) : Math.max(40, 240 - pageItems.length * 28 + extraSpacer)}px` }}>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
+                {(() => {
+                  const spacerHeight = isLastPage
+                    ? Math.max(25, 186 - pageItems.length * 32 + (extraSpacer ? Math.min(extraSpacer, 60) : 0))
+                    : Math.max(40, 240 - pageItems.length * 28 + extraSpacer);
+
+                  return (
+                    <tr style={{ height: `${spacerHeight}px` }}>
+                      <td style={{ height: `${spacerHeight}px` }}></td>
+                      <td style={{ height: `${spacerHeight}px` }}></td>
+                      <td style={{ height: `${spacerHeight}px` }}></td>
+                      <td style={{ height: `${spacerHeight}px` }}></td>
+                      <td style={{ height: `${spacerHeight}px` }}></td>
+                    </tr>
+                  );
+                })()}
 
                 {/* Totals - Only on Last Page */}
                 {isLastPage ? (
