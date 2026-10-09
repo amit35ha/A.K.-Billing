@@ -6,6 +6,7 @@ import BillForm from './components/BillForm';
 import BillPreview from './components/BillPreview';
 import InvoicePreview from './components/InvoicePreview';
 import Login from './components/Login';
+import { DialogProvider, useDialog } from './components/ModalDialog';
 
 const defaultBillData = {
   billType: 'Final Bill',
@@ -40,7 +41,8 @@ const defaultBillData = {
   ]
 };
 
-function App() {
+function MainApp() {
+  const { showAlert, showConfirm } = useDialog();
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('kmc_theme') || 'light';
@@ -75,8 +77,13 @@ function App() {
 
   const previewRef = useRef(null);
 
-  const handleNewBill = () => {
-    if (window.confirm('Clear form and start a new blank bill? Any unsaved changes will be lost.')) {
+  const handleNewBill = async () => {
+    const ok = await showConfirm('Clear form and start a new blank bill? Any unsaved changes will be lost.', {
+      title: 'Start New Bill',
+      confirmText: 'Yes, New Bill',
+      type: 'warning'
+    });
+    if (ok) {
       setBillData(defaultBillData);
       setLoadedBillId(null);
       setActiveDoc('bill');
@@ -99,14 +106,22 @@ function App() {
       setSavedBills(Array.isArray(data) ? data : []);
       setShowSaved(true);
     } catch {
-      alert('Error fetching bills. Is the server running?');
+      await showAlert('Error fetching bills. Is the server running?', {
+        title: 'Network Error',
+        type: 'error'
+      });
     }
   };
 
   const saveBill = async () => {
     const rawOrder = (billData.workOrderNo || '').trim();
     if (!rawOrder) {
-      if (!window.confirm('Work Order No. is empty. Do you want to save as "Draft"?')) {
+      const ok = await showConfirm('Work Order No. is empty. Do you want to save as "Draft"?', {
+        title: 'Empty Work Order No.',
+        confirmText: 'Save as Draft',
+        type: 'warning'
+      });
+      if (!ok) {
         return;
       }
     }
@@ -133,10 +148,15 @@ function App() {
       }) : null;
 
       if (existing) {
-        const confirmUpdate = window.confirm(
-          `⚠️ Warning: A bill for "${existing.workOrderNo}" is already saved in the database!\n` +
+        const confirmUpdate = await showConfirm(
+          `A bill for "${existing.workOrderNo}" is already saved in the database!\n` +
           `${existing.workName ? `\nWork Name: ${existing.workName}\n` : ''}` +
-          `\nDo you want to overwrite and update the existing bill?\n\n(Click Cancel to abort and prevent duplicate saving)`
+          `\nDo you want to overwrite and update the existing bill?\n(Click Cancel to abort and prevent duplicate saving)`,
+          {
+            title: 'Overwrite Existing Bill?',
+            confirmText: 'Overwrite Bill',
+            type: 'warning'
+          }
         );
         if (!confirmUpdate) {
           return;
@@ -154,10 +174,16 @@ function App() {
 
         if (updateRes.ok) {
           setLoadedBillId(existing.id);
-          alert(`✓ Bill "${identifier}" updated successfully!`);
+          await showAlert(`Bill "${identifier}" updated successfully!`, {
+            title: 'Bill Updated',
+            type: 'success'
+          });
         } else {
           const err = await updateRes.json().catch(() => ({}));
-          alert(err.error || 'Failed to update bill');
+          await showAlert(err.error || 'Failed to update bill', {
+            title: 'Update Error',
+            type: 'error'
+          });
         }
         return;
       }
@@ -176,13 +202,22 @@ function App() {
       if (response.ok) {
         const result = await response.json();
         setLoadedBillId(result.id);
-        alert(`✓ Bill "${identifier}" saved successfully!`);
+        await showAlert(`Bill "${identifier}" saved successfully!`, {
+          title: 'Bill Saved',
+          type: 'success'
+        });
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(err.error || 'Failed to save bill');
+        await showAlert(err.error || 'Failed to save bill', {
+          title: 'Save Error',
+          type: 'error'
+        });
       }
     } catch {
-      alert('Error saving bill. Is the server running?');
+      await showAlert('Error saving bill. Is the server running?', {
+        title: 'Connection Error',
+        type: 'error'
+      });
     }
   };
 
@@ -191,7 +226,10 @@ function App() {
       const response = await fetch(`/api/bills/${id}`);
       const resData = await response.json();
       if (!resData || !resData.data) {
-        alert('Could not read bill data');
+        await showAlert('Could not read bill data', {
+          title: 'Error Loading Bill',
+          type: 'error'
+        });
         return;
       }
 
@@ -219,15 +257,26 @@ function App() {
       setLoadedBillId(id);
       setShowSaved(false);
       setActiveDoc('bill');
-      alert(`✓ Loaded ${billType === 'Part Bill' ? `${partBillNumber} Part Bill` : 'Final Bill'} for Work Order: ${rawOrderNo || 'Draft'}`);
+      await showAlert(`Loaded ${billType === 'Part Bill' ? `${partBillNumber} Part Bill` : 'Final Bill'} for Work Order: ${rawOrderNo || 'Draft'}`, {
+        title: 'Bill Loaded',
+        type: 'success'
+      });
     } catch (err) {
       console.error('Error loading bill:', err);
-      alert('Error loading bill');
+      await showAlert('Error loading bill', {
+        title: 'Error',
+        type: 'error'
+      });
     }
   };
 
   const deleteBill = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this bill? This cannot be undone.')) {
+    const ok = await showConfirm('Are you sure you want to delete this bill? This cannot be undone.', {
+      title: 'Delete Bill',
+      confirmText: 'Delete',
+      type: 'danger'
+    });
+    if (!ok) {
       return;
     }
     try {
@@ -235,17 +284,26 @@ function App() {
         method: 'DELETE'
       });
       if (response.ok) {
-        alert('Bill deleted successfully');
+        await showAlert('Bill deleted successfully', {
+          title: 'Bill Deleted',
+          type: 'success'
+        });
         setSavedBills((prev) => prev.filter((b) => b.id !== id));
         if (loadedBillId === id) {
           setLoadedBillId(null);
           setBillData(defaultBillData);
         }
       } else {
-        alert('Failed to delete bill');
+        await showAlert('Failed to delete bill', {
+          title: 'Error',
+          type: 'error'
+        });
       }
     } catch {
-      alert('Error connecting to server to delete bill');
+      await showAlert('Error connecting to server to delete bill', {
+        title: 'Connection Error',
+        type: 'error'
+      });
     }
   };
 
@@ -282,7 +340,10 @@ function App() {
         pdf.save(`KMC-Bill-${fileLabel}.pdf`);
       }
     } catch {
-      alert('Failed to generate PDF');
+      await showAlert('Failed to generate PDF', {
+        title: 'Export Error',
+        type: 'error'
+      });
     }
   };
 
@@ -562,4 +623,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <DialogProvider>
+      <MainApp />
+    </DialogProvider>
+  );
+}

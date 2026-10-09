@@ -201,6 +201,29 @@ input, textarea, select, button {
   width: 100%;
 }
 
+/* Remove stepper arrows from number inputs across Chrome, Safari, Edge, Firefox */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+/* Modal Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* Bill Print Styles - Remains Paper White for Printing / PDF Generation */
 .bill-document {
   background: #ffffff !important;
@@ -211,6 +234,7 @@ input, textarea, select, button {
   font-family: Arial, sans-serif; /* Standard municipal print font */
   font-size: 11px;
   color: #000000 !important;
+  box-sizing: border-box !important;
 }
 
 .bill-table {
@@ -227,3 +251,4 @@ input, textarea, select, button {
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 .font-bold { font-weight: bold; }
+

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Building2, UserPlus, Pencil, X, FileText } from 'lucide-react';
+import { useDialog } from './ModalDialog';
 
 export default function BillForm({ data, onChange }) {
+  const { showAlert, showConfirm } = useDialog();
   const [contractors, setContractors] = useState([]);
   const [selectedContractorId, setSelectedContractorId] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -88,7 +90,7 @@ export default function BillForm({ data, onChange }) {
   const handleSaveContractor = async (e) => {
     e.preventDefault();
     if (!contractorForm.name.trim()) {
-      alert('Contractor name is required');
+      await showAlert('Contractor name is required', { type: 'warning', title: 'Missing Name' });
       return;
     }
 
@@ -115,7 +117,7 @@ export default function BillForm({ data, onChange }) {
           setStatusMsg(`Added ${created.name}`);
           setTimeout(() => setStatusMsg(''), 2500);
         } else {
-          alert(created.error || 'Failed to add contractor');
+          await showAlert(created.error || 'Failed to add contractor', { type: 'error', title: 'Error' });
         }
       } else {
         // Edit mode
@@ -139,24 +141,29 @@ export default function BillForm({ data, onChange }) {
           setStatusMsg(`Updated ${updated.name}`);
           setTimeout(() => setStatusMsg(''), 2500);
         } else {
-          alert(updated.error || 'Failed to update contractor');
+          await showAlert(updated.error || 'Failed to update contractor', { type: 'error', title: 'Error' });
         }
       }
     } catch {
-      alert('Error connecting to server to save contractor');
+      await showAlert('Error connecting to server to save contractor', { type: 'error', title: 'Connection Error' });
     }
   };
 
   const handleDeleteContractor = async () => {
     if (!selectedContractorId) {
-      alert('Please select a contractor to delete first');
+      await showAlert('Please select a contractor to delete first', { type: 'warning', title: 'Select Contractor' });
       return;
     }
 
     const found = contractors.find((c) => String(c.id) === String(selectedContractorId));
     const contractorName = found ? found.name : 'this contractor';
 
-    if (!window.confirm(`Are you sure you want to permanently delete "${contractorName}"?`)) {
+    const confirmed = await showConfirm(`Are you sure you want to permanently delete "${contractorName}"?`, {
+      title: 'Delete Contractor',
+      confirmText: 'Delete',
+      type: 'danger'
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -179,10 +186,10 @@ export default function BillForm({ data, onChange }) {
         setStatusMsg(`Deleted ${contractorName}`);
         setTimeout(() => setStatusMsg(''), 2500);
       } else {
-        alert('Failed to delete contractor');
+        await showAlert('Failed to delete contractor', { type: 'error', title: 'Error' });
       }
     } catch {
-      alert('Error connecting to server to delete contractor');
+      await showAlert('Error connecting to server to delete contractor', { type: 'error', title: 'Connection Error' });
     }
   };
 
@@ -221,8 +228,13 @@ export default function BillForm({ data, onChange }) {
     onChange({ ...data, items: newItems.length > 0 ? newItems : [{ desc: '', qty: '', unit: 'Nos', rate: '', amount: '0.00' }] });
   };
 
-  const handleClearEnterprise = () => {
-    if (window.confirm('Are you sure you want to clear the form details?')) {
+  const handleClearEnterprise = async () => {
+    const confirmed = await showConfirm('Are you sure you want to clear the form details?', {
+      title: 'Clear Contractor Details',
+      confirmText: 'Clear',
+      type: 'warning'
+    });
+    if (confirmed) {
       onChange({
         ...data,
         contractorName: '',
@@ -708,7 +720,16 @@ export default function BillForm({ data, onChange }) {
           <div className="item-row-metrics">
             <div>
               <label>Qty</label>
-              <input type="number" className="form-control" value={item.qty} onChange={(e) => handleItemChange(index, 'qty', e.target.value)} style={{ padding: '0.5rem' }} />
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                className="form-control"
+                value={item.qty}
+                onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                style={{ padding: '0.5rem' }}
+              />
             </div>
             <div>
               <label>Unit</label>
@@ -716,7 +737,16 @@ export default function BillForm({ data, onChange }) {
             </div>
             <div>
               <label>Rate</label>
-              <input type="number" className="form-control" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', e.target.value)} style={{ padding: '0.5rem' }} />
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                className="form-control"
+                value={item.rate}
+                onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                style={{ padding: '0.5rem' }}
+              />
             </div>
             <div>
               <label>Amount</label>

@@ -81,7 +81,19 @@ export default function BillPreview({ data, previewRef }) {
         const isLastPage = pageIndex === pages.length - 1;
         
         return (
-          <div key={pageIndex} className="bill-document" style={{ position: 'relative', height: '297mm', overflow: 'hidden', flexShrink: 0, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <div
+            key={pageIndex}
+            className="bill-document"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              minHeight: '297mm',
+              boxSizing: 'border-box',
+              flexShrink: 0,
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}
+          >
             
             {/* Top of page banner with Accounts Form info and prominent Bill Type */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -208,8 +220,8 @@ export default function BillPreview({ data, previewRef }) {
                   );
                 })}
                 
-                {/* Single vertical spacer row extending column borders to push totals to the down side of the page */}
-                <tr style={{ height: `${Math.max(40, 220 - pageItems.length * 28 + extraSpacer)}px` }}>
+                {/* Single vertical spacer row extending column borders */}
+                <tr style={{ height: `${isLastPage ? Math.max(8, 70 - pageItems.length * 15 + (extraSpacer ? Math.min(extraSpacer, 50) : 0)) : Math.max(40, 240 - pageItems.length * 28 + extraSpacer)}px` }}>
                   <td></td>
                   <td></td>
                   <td></td>
@@ -290,32 +302,36 @@ export default function BillPreview({ data, previewRef }) {
 
             {/* Footer - Only on Last Page */}
             {isLastPage && (
-              <div style={{ position: 'absolute', bottom: '15mm', left: '15mm', right: '15mm' }}>
-                <div style={{ fontWeight: 'bold' }}>(Rupees in Word): {numberToWords(grandTotal)}</div>
-                
-                <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span>UBN NO:</span>
-                    <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
-                      {data.ubnNo || ''}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span>EB NO:</span>
-                    <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
-                      {data.ebNo || ''}
-                    </span>
-                  </div>
+              <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '14px' }}>
+                  (Rupees in Word): {numberToWords(grandTotal)}
                 </div>
                 
-                <div style={{ position: 'absolute', bottom: '0', right: '0', textAlign: 'center', width: '230px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
-                    For {data.contractorName || ''}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <span>UBN NO:</span>
+                      <span style={{ borderBottom: '1.5px dotted #000', minWidth: '200px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                        {data.ubnNo || ''}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <span>EB NO:</span>
+                      <span style={{ borderBottom: '1.5px dotted #000', minWidth: '200px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                        {data.ebNo || ''}
+                      </span>
+                    </div>
                   </div>
-                  {/* Space for stamp / seal */}
-                  <div style={{ height: '48px' }}></div>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
-                    Signature of contractor
+                  
+                  <div style={{ textAlign: 'center', width: '230px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                      For {data.contractorName || ''}
+                    </div>
+                    {/* Space for stamp / seal */}
+                    <div style={{ height: '48px' }}></div>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                      Signature of contractor
+                    </div>
                   </div>
                 </div>
               </div>
