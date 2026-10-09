@@ -1,0 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --bg-color: #f1f5f9;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border: #cbd5e1;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --item-row-bg: #f8fafc;
+  --preview-container-bg: #cbd5e1;
+  --btn-secondary-bg: #f1f5f9;
+  --btn-secondary-hover: #e2e8f0;
+  --btn-secondary-text: #334155;
+  --tab-bar-bg: #ffffff;
+  --tab-inactive-bg: #f1f5f9;
+  --tab-inactive-text: #475569;
+  --tax-active-bg: #eff6ff;
+  --tax-active-text: #1d4ed8;
+  --tax-active-border: #2563eb;
+  --modal-bg: #ffffff;
+  --modal-overlay: rgba(15, 23, 42, 0.5);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='dark'] {
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --bg-color: #0b0f19;
+  --card-bg: #111827;
+  --card-border: #1f2937;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border: #374151;
+  --input-bg: #1f2937;
+  --input-border: #374151;
+  --item-row-bg: #162032;
+  --preview-container-bg: #030712;
+  --btn-secondary-bg: #1f2937;
+  --btn-secondary-hover: #374151;
+  --btn-secondary-text: #e2e8f0;
+  --tab-bar-bg: #111827;
+  --tab-inactive-bg: #1f2937;
+  --tab-inactive-text: #94a3b8;
+  --tax-active-bg: rgba(59, 130, 246, 0.15);
+  --tax-active-text: #93c5fd;
+  --tax-active-border: #3b82f6;
+  --modal-bg: #111827;
+  --modal-overlay: rgba(0, 0, 0, 0.75);
+  --shadow-card: 0 4px 8px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  line-height: 1.5;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+}
+
+.app-container {
+  max-width: 95%;
+  margin: 0 auto;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: 4fr 5fr;
+  gap: 2rem;
+}
+
+@media (max-width: 1200px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+  grid-column: 1 / -1;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(to right, #2563eb, #10b981);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Form Styles */
+.form-card, .preview-card {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--card-border);
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.25s ease, color 0.25s ease;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--btn-secondary-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.item-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  align-items: end;
+  background: var(--item-row-bg);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.item-row-desc {
+  flex: 1 1 100%;
+}
+
+.item-row-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr 1.5fr;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* Bill Print Styles - Remains Paper White for Printing / PDF Generation */
+.bill-document {
+  background: #ffffff !important;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 15mm;
+  margin: 0 auto;
+  font-family: Arial, sans-serif; /* Standard municipal print font */
+  font-size: 11px;
+  color: #000000 !important;
+}
+
+.bill-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.bill-table th, .bill-table td {
+  border: 1px solid #000;
+  padding: 4px;
+}
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.font-bold { font-weight: bold; }
