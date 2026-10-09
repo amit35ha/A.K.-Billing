@@ -332,9 +332,9 @@ app.put('/api/contractors/:id', (req, res) => {
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
-// SPA client-side fallback
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
+// SPA client-side fallback (Express 5 compatible)
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api')) {
     return next();
   }
   res.sendFile(path.join(distPath, 'index.html'), (err) => {
