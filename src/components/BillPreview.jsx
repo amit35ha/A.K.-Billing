@@ -221,7 +221,7 @@ export default function BillPreview({ data, previewRef }) {
                 })}
                 
                 {/* Single vertical spacer row extending column borders */}
-                <tr style={{ height: `${isLastPage ? Math.max(8, 70 - pageItems.length * 15 + (extraSpacer ? Math.min(extraSpacer, 50) : 0)) : Math.max(40, 240 - pageItems.length * 28 + extraSpacer)}px` }}>
+                <tr style={{ height: `${isLastPage ? Math.max(30, 140 - pageItems.length * 22 + (extraSpacer ? Math.min(extraSpacer, 60) : 0)) : Math.max(40, 240 - pageItems.length * 28 + extraSpacer)}px` }}>
                   <td></td>
                   <td></td>
                   <td></td>
@@ -302,28 +302,32 @@ export default function BillPreview({ data, previewRef }) {
 
             {/* Footer - Only on Last Page */}
             {isLastPage && (
-              <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '14px' }}>
-                  (Rupees in Word): {numberToWords(grandTotal)}
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <span>UBN NO:</span>
-                      <span style={{ borderBottom: '1.5px dotted #000', minWidth: '200px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
-                        {data.ubnNo || ''}
-                      </span>
+              <div style={{ marginTop: 'auto', paddingTop: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  {/* Left Column: Rupees in Word & UBN / EB numbers */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, paddingRight: '24px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '11px', lineHeight: 1.4 }}>
+                      (Rupees in Word): {numberToWords(grandTotal)}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <span>EB NO:</span>
-                      <span style={{ borderBottom: '1.5px dotted #000', minWidth: '200px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
-                        {data.ebNo || ''}
-                      </span>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        <span>UBN NO:</span>
+                        <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                          {data.ubnNo || ''}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        <span>EB NO:</span>
+                        <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                          {data.ebNo || ''}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
-                  <div style={{ textAlign: 'center', width: '230px' }}>
+                  {/* Right Column: Contractor Signature & Seal */}
+                  <div style={{ textAlign: 'center', width: '230px', flexShrink: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
                       For {data.contractorName || ''}
                     </div>
