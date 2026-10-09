@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { Download, Save, FolderOpen, LogOut, Trash2, FileText, Receipt, PlusCircle, Sun, Moon } from 'lucide-react';
+import { Download, Save, FolderOpen, LogOut, Trash2, FileText, Receipt, PlusCircle, Sun, Moon, Upload } from 'lucide-react';
 import BillForm from './components/BillForm';
 import BillPreview from './components/BillPreview';
 import InvoicePreview from './components/InvoicePreview';
@@ -41,8 +41,42 @@ const defaultBillData = {
   ]
 };
 
+const LOCAL_BACKUP_KEY = 'kmc_bills_backup_v1';
+
+function getLocalBackup() {
+  try {
+    const raw = localStorage.getItem(LOCAL_BACKUP_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBillToLocalBackup(billRecord) {
+  try {
+    const list = getLocalBackup();
+    const wo = (billRecord.workOrderNo || '').trim().toLowerCase();
+    const filtered = list.filter((b) => (b.workOrderNo || '').trim().toLowerCase() !== wo);
+    filtered.unshift(billRecord);
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('Failed to save to local backup', e);
+  }
+}
+
+function removeBillFromLocalBackup(woOrId) {
+  try {
+    const list = getLocalBackup();
+    const filtered = list.filter(
+      (b) => String(b.id) !== String(woOrId) && (b.workOrderNo || '').trim().toLowerCase() !== String(woOrId).trim().toLowerCase()
+    );
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(filtered));
+  } catch {}
+}
+
 function MainApp() {
   const { showAlert, showConfirm } = useDialog();
+  const fileInputRef = useRef(null);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('kmc_theme') || 'light';
@@ -55,6 +89,29 @@ function MainApp() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('kmc_theme', theme);
   }, [theme]);
+
+  // Background auto-sync on app open: restores any missing bills to server if Render was restarted
+  useEffect(() => {
+    const localBackup = getLocalBackup();
+    if (localBackup.length > 0) {
+      fetch('/api/bills')
+        .then((r) => r.json())
+        .then((serverBills) => {
+          if (Array.isArray(serverBills)) {
+            const serverWoSet = new Set(serverBills.map((b) => (b.workOrderNo || '').trim().toLowerCase()));
+            const missing = localBackup.filter((b) => !serverWoSet.has((b.workOrderNo || '').trim().toLowerCase()));
+            if (missing.length > 0) {
+              fetch('/api/bills/bulk-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(missing)
+              }).catch(() => {});
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -102,14 +159,57 @@ function MainApp() {
   const fetchBills = async () => {
     try {
       const response = await fetch('/api/bills');
-      const data = await response.json();
-      setSavedBills(Array.isArray(data) ? data : []);
+      let data = await response.json();
+      if (!Array.isArray(data)) data = [];
+
+      // Auto-sync protection: If Render restarted and wiped the server database,
+      // recover missing bills from browser local backup automatically:
+      const localBackup = getLocalBackup();
+      if (localBackup.length > 0) {
+        const serverWoSet = new Set(data.map((b) => (b.workOrderNo || '').trim().toLowerCase()));
+        const missingOnServer = localBackup.filter((b) => !serverWoSet.has((b.workOrderNo || '').trim().toLowerCase()));
+
+        if (missingOnServer.length > 0) {
+          await fetch('/api/bills/bulk-import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(missingOnServer)
+          }).catch(() => {});
+
+          const refreshed = await fetch('/api/bills');
+          const refData = await refreshed.json();
+          if (Array.isArray(refData)) {
+            data = refData;
+          }
+        }
+      }
+
+      // Also ensure all bills currently on server are saved into local backup
+      if (data.length > 0) {
+        for (const b of data) {
+          if (b.workOrderNo) {
+            const existingInLocal = localBackup.find((lb) => (lb.workOrderNo || '').trim().toLowerCase() === b.workOrderNo.trim().toLowerCase());
+            if (!existingInLocal && b.id) {
+              fetch(`/api/bills/${b.id}`)
+                .then((r) => r.json())
+                .then((full) => {
+                  if (full && full.data) {
+                    saveBillToLocalBackup(full);
+                  }
+                })
+                .catch(() => {});
+            }
+          }
+        }
+      }
+
+      setSavedBills(data);
       setShowSaved(true);
     } catch {
-      await showAlert('Error fetching bills. Is the server running?', {
-        title: 'Network Error',
-        type: 'error'
-      });
+      // If server is sleeping or failed, load from local browser backup directly!
+      const localBackup = getLocalBackup();
+      setSavedBills(localBackup);
+      setShowSaved(true);
     }
   };
 
@@ -174,6 +274,14 @@ function MainApp() {
 
         if (updateRes.ok) {
           setLoadedBillId(existing.id);
+          saveBillToLocalBackup({
+            id: existing.id,
+            workOrderNo: identifier,
+            contractorName: billData.contractorName || '',
+            workName: billData.workName || '',
+            data: { ...billData, workOrderNo: identifier },
+            createdAt: new Date().toISOString()
+          });
           await showAlert(`Bill "${identifier}" updated successfully!`, {
             title: 'Bill Updated',
             type: 'success'
@@ -202,6 +310,14 @@ function MainApp() {
       if (response.ok) {
         const result = await response.json();
         setLoadedBillId(result.id);
+        saveBillToLocalBackup({
+          id: result.id,
+          workOrderNo: identifier,
+          contractorName: billData.contractorName || '',
+          workName: billData.workName || '',
+          data: { ...billData, workOrderNo: identifier },
+          createdAt: new Date().toISOString()
+        });
         await showAlert(`Bill "${identifier}" saved successfully!`, {
           title: 'Bill Saved',
           type: 'success'
@@ -223,9 +339,28 @@ function MainApp() {
 
   const loadBill = async (id) => {
     try {
-      const response = await fetch(`/api/bills/${id}`);
-      const resData = await response.json();
-      if (!resData || !resData.data) {
+      let rawData = null;
+      let rawSavedWO = '';
+      try {
+        const response = await fetch(`/api/bills/${id}`);
+        const resData = await response.json();
+        if (resData && resData.data) {
+          rawData = resData.data;
+          rawSavedWO = resData.data.workOrderNo || resData.workOrderNo || '';
+        }
+      } catch {}
+
+      // Fallback to local backup if server failed or restarted
+      if (!rawData) {
+        const localBackup = getLocalBackup();
+        const found = localBackup.find((b) => String(b.id) === String(id) || b.workOrderNo === String(id));
+        if (found) {
+          rawData = found.data || found;
+          rawSavedWO = rawData.workOrderNo || found.workOrderNo || '';
+        }
+      }
+
+      if (!rawData) {
         await showAlert('Could not read bill data', {
           title: 'Error Loading Bill',
           type: 'error'
@@ -233,14 +368,12 @@ function MainApp() {
         return;
       }
 
-      const rawSavedWO = resData.data.workOrderNo || resData.workOrderNo || '';
       const rawOrderNo = rawSavedWO.replace(/\s*\((Final Bill|.*Part Bill)\)$/i, '').trim();
       const partMatch = rawSavedWO.match(/\((.*?) Part Bill\)/i);
-      const isPart = Boolean(partMatch) || resData.data.billType === 'Part Bill';
+      const isPart = Boolean(partMatch) || rawData.billType === 'Part Bill';
       const billType = isPart ? 'Part Bill' : 'Final Bill';
-      const partBillNumber = resData.data.partBillNumber || (partMatch ? partMatch[1] : '1st');
+      const partBillNumber = rawData.partBillNumber || (partMatch ? partMatch[1] : '1st');
 
-      const rawData = resData.data || {};
       const loadedItems = Array.isArray(rawData.items) && rawData.items.length > 0
         ? rawData.items
         : [{ desc: '', qty: '', unit: 'Nos', rate: '', amount: '' }];
@@ -279,6 +412,7 @@ function MainApp() {
     if (!ok) {
       return;
     }
+    removeBillFromLocalBackup(id);
     try {
       const response = await fetch(`/api/bills/${id}`, {
         method: 'DELETE'
@@ -294,16 +428,66 @@ function MainApp() {
           setBillData(defaultBillData);
         }
       } else {
-        await showAlert('Failed to delete bill', {
-          title: 'Error',
-          type: 'error'
+        await showAlert('Failed to delete bill on server, but removed from local cache', {
+          title: 'Notice',
+          type: 'warning'
         });
+        setSavedBills((prev) => prev.filter((b) => b.id !== id));
       }
     } catch {
-      await showAlert('Error connecting to server to delete bill', {
-        title: 'Connection Error',
-        type: 'error'
+      await showAlert('Server unavailable; bill removed from local cache', {
+        title: 'Notice',
+        type: 'warning'
       });
+      setSavedBills((prev) => prev.filter((b) => b.id !== id));
+    }
+  };
+
+  const handleExportBackup = () => {
+    const backupList = getLocalBackup();
+    if (backupList.length === 0 && savedBills.length > 0) {
+      backupList.push(...savedBills);
+    }
+    if (backupList.length === 0) {
+      showAlert('No saved bills to export yet.', { title: 'Export Backup', type: 'info' });
+      return;
+    }
+    const blob = new Blob([JSON.stringify(backupList, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kmc-bills-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const imported = JSON.parse(text);
+      if (!Array.isArray(imported)) {
+        await showAlert('Invalid backup file. Expected a JSON array of bills.', { title: 'Import Error', type: 'error' });
+        return;
+      }
+      for (const item of imported) {
+        saveBillToLocalBackup(item);
+      }
+      await fetch('/api/bills/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(imported)
+      }).catch(() => {});
+
+      await fetchBills();
+      await showAlert(`Successfully imported ${imported.length} bill(s)!`, { title: 'Import Successful', type: 'success' });
+    } catch {
+      await showAlert('Failed to read or parse backup file.', { title: 'Import Error', type: 'error' });
+    } finally {
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -458,13 +642,40 @@ function MainApp() {
 
       {showSaved && (
         <div style={{ gridColumn: '1 / -1', background: 'var(--card-bg)', padding: '1.25rem', borderRadius: '0.75rem', boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FolderOpen size={20} color="#2563eb" /> Saved Bills
-            </h3>
-            <button className="btn btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }} onClick={() => setShowSaved(false)}>
-              Close
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FolderOpen size={20} color="#2563eb" /> Saved Bills
+              </h3>
+              <span style={{ fontSize: '0.75rem', color: '#10b981', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontWeight: 600 }}>
+                ✓ Browser Auto-Sync Active
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="file" ref={fileInputRef} accept=".json" style={{ display: 'none' }} onChange={handleImportBackup} />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                onClick={handleExportBackup}
+                title="Download backup file of all your saved bills to your computer"
+              >
+                <Download size={14} /> Export Backup
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                onClick={() => fileInputRef.current?.click()}
+                title="Restore saved bills from a backup JSON file"
+              >
+                <Upload size={14} /> Import Backup
+              </button>
+              <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.825rem' }} onClick={() => setShowSaved(false)}>
+                Close
+              </button>
+            </div>
           </div>
 
           <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

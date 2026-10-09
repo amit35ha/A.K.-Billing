@@ -34,6 +34,8 @@ const db = new sqlite3.Database(path.join(__dirname, 'bills.db'), (err) => {
     console.error('Error opening database', err.message);
   } else {
     console.log('Connected to the SQLite database.');
+    db.run('PRAGMA journal_mode = WAL;');
+    db.run('PRAGMA synchronous = NORMAL;');
     db.run(`CREATE TABLE IF NOT EXISTS bills (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       workOrderNo TEXT,
@@ -189,6 +191,61 @@ app.put('/api/bills/:id', (req, res) => {
       res.json({ id: Number(req.params.id), message: 'Bill updated successfully!' });
     }
   );
+});
+
+// Bulk import / restore bills (ensures data is recovered if container restarts)
+app.post('/api/bills/bulk-import', (req, res) => {
+  const bills = req.body;
+  if (!Array.isArray(bills)) {
+    return res.status(400).json({ error: 'Expected an array of bills' });
+  }
+
+  let processed = 0;
+  if (bills.length === 0) {
+    return res.json({ message: 'No bills to import', count: 0 });
+  }
+
+  bills.forEach((bill) => {
+    const rawWO = bill.workOrderNo || (bill.data && bill.data.workOrderNo);
+    if (!rawWO) {
+      processed++;
+      if (processed === bills.length) res.json({ message: 'Bills synchronized successfully', count: bills.length });
+      return;
+    }
+
+    const cName = bill.contractorName || (bill.data && bill.data.contractorName) || '';
+    const dataStr = bill.data ? (typeof bill.data === 'string' ? bill.data : JSON.stringify(bill.data)) : JSON.stringify(bill);
+
+    db.get('SELECT id FROM bills WHERE workOrderNo = ?', [rawWO], (err, row) => {
+      if (!err && row) {
+        db.run('UPDATE bills SET contractorName = ?, data = ?, createdAt = CURRENT_TIMESTAMP WHERE id = ?', [cName, dataStr, row.id], () => {
+          processed++;
+          if (processed === bills.length) res.json({ message: 'Bills synchronized successfully', count: bills.length });
+        });
+      } else {
+        db.run('INSERT INTO bills (workOrderNo, contractorName, data) VALUES (?, ?, ?)', [rawWO, cName, dataStr], () => {
+          processed++;
+          if (processed === bills.length) res.json({ message: 'Bills synchronized successfully', count: bills.length });
+        });
+      }
+    });
+  });
+});
+
+// Export all bills with full data
+app.get('/api/bills/export', (req, res) => {
+  db.all('SELECT * FROM bills ORDER BY createdAt DESC', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    const parsed = rows.map((r) => {
+      try {
+        r.data = JSON.parse(r.data);
+      } catch {}
+      return r;
+    });
+    res.json(parsed);
+  });
 });
 
 // User Registration endpoint
