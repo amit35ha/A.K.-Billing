@@ -251,6 +251,8 @@ function MainApp() {
         workOrderNo: rawOrderNo || rawSavedWO,
         billType,
         partBillNumber,
+        department: rawData.department || 'Lighting',
+        zone: rawData.zone || 'II',
         taxType: rawData.taxType || 'With GST & Cess',
         items: loadedItems
       });
@@ -512,6 +514,11 @@ function MainApp() {
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                         | Contractor: <strong style={{ color: 'var(--text-main)' }}>{bill.contractorName}</strong>
                       </span>
+                      {bill.totalAmount && (
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#16a34a' }}>
+                          | Amount: ₹ {bill.totalAmount}
+                        </span>
+                      )}
                       {bill.createdAt && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                           ({new Date(bill.createdAt).toLocaleDateString('en-GB')})

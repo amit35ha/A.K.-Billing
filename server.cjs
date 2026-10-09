@@ -133,15 +133,26 @@ app.get('/api/bills', (req, res) => {
     }
     const formatted = rows.map((r) => {
       let workName = '';
+      let totalAmount = '';
       try {
         const parsed = JSON.parse(r.data);
         workName = parsed.workName || '';
+        if (Array.isArray(parsed.items)) {
+          const sum = parsed.items.reduce((s, it) => s + (parseFloat(it.amount) || 0), 0);
+          const hasGST = (parsed.taxType || '').includes('GST');
+          const hasCess = (parsed.taxType || '').includes('Cess');
+          const gst = hasGST ? sum * 0.18 : 0;
+          const preCess = sum + gst;
+          const cess = hasCess ? preCess * 0.01 : 0;
+          totalAmount = (preCess + cess).toFixed(2);
+        }
       } catch {}
       return {
         id: r.id,
         workOrderNo: r.workOrderNo,
         contractorName: r.contractorName,
         workName: workName,
+        totalAmount: totalAmount,
         createdAt: r.createdAt
       };
     });
