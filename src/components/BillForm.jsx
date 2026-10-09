@@ -45,21 +45,6 @@ export default function BillForm({ data, onChange }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (data?.contractorName && contractors.length > 0) {
-      const match = contractors.find(
-        (c) => c.name.trim().toLowerCase() === data.contractorName.trim().toLowerCase()
-      );
-      if (match) {
-        setSelectedContractorId(String(match.id));
-      } else {
-        setSelectedContractorId('');
-      }
-    } else if (!data?.contractorName) {
-      setSelectedContractorId('');
-    }
-  }, [data?.contractorName, contractors]);
-
   const handleSelectContractor = (e) => {
     const id = e.target.value;
     setSelectedContractorId(id);

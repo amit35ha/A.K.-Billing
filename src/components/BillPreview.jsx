@@ -156,7 +156,7 @@ export default function BillPreview({ data, previewRef }) {
                 {/* Row 4 (KMC Details) */}
                 <tr>
                   <td colSpan="3" style={{ textAlign: 'center', padding: '10px' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '16px' }}>THE KOLKATA MUNICIPAL CORPORATION &nbsp; {data.department ? `${data.department} Dept.` : 'Lighting Dept.'} &nbsp; Z-{data.zone || 'II'} DT.</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px' }}>THE KOLKATA MUNICIPAL CORPORATION &nbsp; Ex. Engg-Elec &nbsp; Z-{data.zone || 'II'} DT.</div>
                     <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '2px' }}>GSTIN/UIN - 19AAALT1025G1Z6</div>
                     <div style={{ fontWeight: 'bold', fontSize: '16px', marginTop: '4px' }}>
                       A/C---{data.contractorName || ''}
@@ -324,9 +324,6 @@ export default function BillPreview({ data, previewRef }) {
                   </div>
                   
                   <div style={{ textAlign: 'center', width: '230px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #000', paddingBottom: '4px' }}>
-                      Bill Total: Rs. {grandTotal.toFixed(2)}
-                    </div>
                     <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
                       For {data.contractorName || ''}
                     </div>
