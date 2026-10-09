@@ -172,145 +172,147 @@ export default function BillPreview({ data, previewRef }) {
               </tbody>
             </table>
 
-            {/* Items Table */}
-            <table className="bill-table" style={{ borderTop: 'none' }}>
-              <thead>
-                <tr>
-                  <th rowSpan="2" style={{ width: '5%', textAlign: 'center', verticalAlign: 'bottom' }}>Sl. No.</th>
-                  <th rowSpan="2" style={{ width: '60%', textAlign: 'center', verticalAlign: 'bottom' }}>Description of Work</th>
-                  <th rowSpan="2" style={{ width: '10%', textAlign: 'center', verticalAlign: 'bottom' }}>Rate</th>
-                  <th colSpan="2" style={{ width: '25%', textAlign: 'center' }}>Since last bill</th>
-                </tr>
-                <tr>
-                  <th style={{ textAlign: 'center', width: '10%' }}>Quantity</th>
-                  <th style={{ textAlign: 'center', width: '15%' }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Work info row */}
-                <tr>
-                  <td></td>
-                  <td colSpan="4">
-                    <div className="font-bold">Work Name: {data.workName}</div>
-                    <div style={{ display: 'flex', gap: '40px', marginTop: '10px' }}>
-                      <span className="font-bold">Work Order No. : {data.workOrderNo}</span>
-                      <span className="font-bold">Date: {data.workOrderDate}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '40px', marginTop: '10px', marginBottom: '10px' }}>
-                      <span className="font-bold">Date of Commencement :- {data.dateOfCommencement}</span>
-                      <span className="font-bold">Date of Completion :- {data.dateOfCompletion}</span>
-                    </div>
-                  </td>
-                </tr>
-                
-                {/* Items */}
-                {pageItems.map((item, index) => {
-                  const globalIndex = (pageIndex * ITEMS_PER_PAGE) + index;
-                  return (
-                    <tr key={globalIndex}>
-                      <td className="text-center">{globalIndex + 1}</td>
-                      <td>{item.desc}</td>
-                      <td className="text-center">{item.rate}</td>
-                      <td className="text-center">
-                        <div>{item.qty}</div>
-                        <div style={{ fontSize: '9px', marginTop: '2px' }}>{item.unit || 'Nos'}</div>
-                      </td>
-                      <td className="text-right">{item.amount}</td>
-                    </tr>
-                  );
-                })}
-                
-                {/* Single vertical spacer row extending column borders */}
-                {(() => {
-                  const spacerHeight = isLastPage
-                    ? Math.max(25, 186 - pageItems.length * 32 + (extraSpacer ? Math.min(extraSpacer, 60) : 0))
-                    : Math.max(40, 240 - pageItems.length * 28 + extraSpacer);
-
-                  return (
-                    <tr style={{ height: `${spacerHeight}px` }}>
-                      <td style={{ height: `${spacerHeight}px` }}></td>
-                      <td style={{ height: `${spacerHeight}px` }}></td>
-                      <td style={{ height: `${spacerHeight}px` }}></td>
-                      <td style={{ height: `${spacerHeight}px` }}></td>
-                      <td style={{ height: `${spacerHeight}px` }}></td>
-                    </tr>
-                  );
-                })()}
-
-                {/* Totals - Only on Last Page */}
-                {isLastPage ? (
-                  <>
-                    <tr>
-                      <td colSpan="2" rowSpan={rowSpanCount} style={{ verticalAlign: 'top', padding: '10px 12px' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '12px', textDecoration: 'underline', marginBottom: '8px' }}>
-                          MEASUREMENT BOOK DETAILS
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
-                            <span style={{ fontWeight: 'bold' }}>Measurement Book No. :</span>
-                            <span style={{ fontWeight: data.mbNo ? 'bold' : 'normal' }}>
-                              {data.mbNo || '................................'}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
-                            <span style={{ fontWeight: 'bold' }}>Page No. :</span>
-                            <span style={{ fontWeight: data.mbPageNo ? 'bold' : 'normal' }}>
-                              {data.mbPageNo || '................................'}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td colSpan="2" className="text-center font-bold">Total Say</td>
-                      <td className="text-right font-bold">{total.toFixed(2)}</td>
-                    </tr>
-
-                    {hasGST && (
-                      <tr>
-                        <td className="text-center font-bold">ADDING 18% GST</td>
-                        <td className="text-center">
-                          <div>CGST @9%</div>
-                          <div style={{ borderTop: '1px solid black' }}>SGST @9%</div>
-                        </td>
-                        <td className="text-right">
-                          <div>{cgst.toFixed(2)}</div>
-                          <div style={{ borderTop: '1px solid black' }}>{sgst.toFixed(2)}</div>
-                        </td>
-                      </tr>
-                    )}
-
-                    {hasCess && (
-                      <>
-                        <tr>
-                          <td colSpan="2" className="text-center font-bold">Amount Before CESS---</td>
-                          <td className="text-right font-bold">{amountBeforeCess.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                          <td colSpan="2" className="text-center font-bold">CESS-1%----</td>
-                          <td className="text-right">{cess.toFixed(2)}</td>
-                        </tr>
-                      </>
-                    )}
-
-                    <tr>
-                      <td colSpan="2" className="text-center font-bold">Bill Amount</td>
-                      <td className="text-right font-bold">{grandTotal.toFixed(2)}</td>
-                    </tr>
-                  </>
-                ) : (
+            {/* Items Table Container: absorbs available vertical space so blank space is in the middle */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <table className="bill-table" style={{ borderTop: 'none', height: '100%', flex: 1 }}>
+                <thead>
                   <tr>
-                    <td colSpan="2"></td>
-                    <td colSpan="2" className="text-center font-bold">Page Total (Carried Over)</td>
-                    <td className="text-right font-bold">
-                      {pageItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toFixed(2)}
+                    <th rowSpan="2" style={{ width: '5%', textAlign: 'center', verticalAlign: 'bottom' }}>Sl. No.</th>
+                    <th rowSpan="2" style={{ width: '60%', textAlign: 'center', verticalAlign: 'bottom' }}>Description of Work</th>
+                    <th rowSpan="2" style={{ width: '10%', textAlign: 'center', verticalAlign: 'bottom' }}>Rate</th>
+                    <th colSpan="2" style={{ width: '25%', textAlign: 'center' }}>Since last bill</th>
+                  </tr>
+                  <tr>
+                    <th style={{ textAlign: 'center', width: '10%' }}>Quantity</th>
+                    <th style={{ textAlign: 'center', width: '15%' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Work info row */}
+                  <tr>
+                    <td></td>
+                    <td colSpan="4">
+                      <div className="font-bold">Work Name: {data.workName}</div>
+                      <div style={{ display: 'flex', gap: '40px', marginTop: '10px' }}>
+                        <span className="font-bold">Work Order No. : {data.workOrderNo}</span>
+                        <span className="font-bold">Date: {data.workOrderDate}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '40px', marginTop: '10px', marginBottom: '10px' }}>
+                        <span className="font-bold">Date of Commencement :- {data.dateOfCommencement}</span>
+                        <span className="font-bold">Date of Completion :- {data.dateOfCompletion}</span>
+                      </div>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                  
+                  {/* Items */}
+                  {pageItems.map((item, index) => {
+                    const globalIndex = (pageIndex * ITEMS_PER_PAGE) + index;
+                    return (
+                      <tr key={globalIndex}>
+                        <td className="text-center">{globalIndex + 1}</td>
+                        <td>{item.desc}</td>
+                        <td className="text-center">{item.rate}</td>
+                        <td className="text-center">
+                          <div>{item.qty}</div>
+                          <div style={{ fontSize: '9px', marginTop: '2px' }}>{item.unit || 'Nos'}</div>
+                        </td>
+                        <td className="text-right">{item.amount}</td>
+                      </tr>
+                    );
+                  })}
+                  
+                  {/* Single vertical spacer row extending column borders in the middle */}
+                  {(() => {
+                    const spacerHeight = isLastPage
+                      ? Math.max(40, 310 - pageItems.length * 32 + (extraSpacer ? Math.min(extraSpacer, 60) : 0))
+                      : Math.max(60, 480 - pageItems.length * 32 + extraSpacer);
+
+                    return (
+                      <tr style={{ height: '100%' }}>
+                        <td style={{ height: `${spacerHeight}px` }}></td>
+                        <td style={{ height: `${spacerHeight}px` }}></td>
+                        <td style={{ height: `${spacerHeight}px` }}></td>
+                        <td style={{ height: `${spacerHeight}px` }}></td>
+                        <td style={{ height: `${spacerHeight}px` }}></td>
+                      </tr>
+                    );
+                  })()}
+
+                  {/* Totals - Only on Last Page */}
+                  {isLastPage ? (
+                    <>
+                      <tr>
+                        <td colSpan="2" rowSpan={rowSpanCount} style={{ verticalAlign: 'top', padding: '10px 12px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '12px', textDecoration: 'underline', marginBottom: '8px' }}>
+                            MEASUREMENT BOOK DETAILS
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
+                              <span style={{ fontWeight: 'bold' }}>Measurement Book No. :</span>
+                              <span style={{ fontWeight: data.mbNo ? 'bold' : 'normal' }}>
+                                {data.mbNo || '................................'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
+                              <span style={{ fontWeight: 'bold' }}>Page No. :</span>
+                              <span style={{ fontWeight: data.mbPageNo ? 'bold' : 'normal' }}>
+                                {data.mbPageNo || '................................'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td colSpan="2" className="text-center font-bold">Total Say</td>
+                        <td className="text-right font-bold">{total.toFixed(2)}</td>
+                      </tr>
+
+                      {hasGST && (
+                        <tr>
+                          <td className="text-center font-bold">ADDING 18% GST</td>
+                          <td className="text-center">
+                            <div>CGST @9%</div>
+                            <div style={{ borderTop: '1px solid black' }}>SGST @9%</div>
+                          </td>
+                          <td className="text-right">
+                            <div>{cgst.toFixed(2)}</div>
+                            <div style={{ borderTop: '1px solid black' }}>{sgst.toFixed(2)}</div>
+                          </td>
+                        </tr>
+                      )}
+
+                      {hasCess && (
+                        <>
+                          <tr>
+                            <td colSpan="2" className="text-center font-bold">Amount Before CESS---</td>
+                            <td className="text-right font-bold">{amountBeforeCess.toFixed(2)}</td>
+                          </tr>
+                          <tr>
+                            <td colSpan="2" className="text-center font-bold">CESS-1%----</td>
+                            <td className="text-right">{cess.toFixed(2)}</td>
+                          </tr>
+                        </>
+                      )}
+
+                      <tr>
+                        <td colSpan="2" className="text-center font-bold">Bill Amount</td>
+                        <td className="text-right font-bold">{grandTotal.toFixed(2)}</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td colSpan="2"></td>
+                      <td colSpan="2" className="text-center font-bold">Page Total (Carried Over)</td>
+                      <td className="text-right font-bold">
+                        {pageItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
             {/* Footer - Only on Last Page */}
             {isLastPage && (
-              <div style={{ marginTop: 'auto', paddingTop: '14px' }}>
+              <div style={{ marginTop: '14px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   {/* Left Column: Rupees in Word & UBN / EB numbers */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, paddingRight: '24px' }}>
