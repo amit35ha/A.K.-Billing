@@ -8,8 +8,12 @@
     "start": "node server.cjs",
     "server": "node server.cjs",
     "build": "vite build",
+    "render-build": "npm rebuild sqlite3 --build-from-source && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20.0.0 <23.0.0"
   },
   "dependencies": {
     "concurrently": "^10.0.6",
