@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Building2, UserPlus, Pencil, X, FileText } from 'lucide-react';
+import { Plus, Trash2, Building2, UserPlus, Pencil, X, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { useDialog } from './ModalDialog';
 
 export default function BillForm({ data, onChange }) {
@@ -226,6 +226,24 @@ export default function BillForm({ data, onChange }) {
     const current = Array.isArray(data.items) ? data.items : [];
     const newItems = current.filter((_, i) => i !== index);
     onChange({ ...data, items: newItems.length > 0 ? newItems : [{ desc: '', qty: '', unit: 'Nos', rate: '', amount: '0.00' }] });
+  };
+
+  const moveItemUp = (index) => {
+    if (index <= 0) return;
+    const current = Array.isArray(data.items) ? [...data.items] : [];
+    const temp = current[index];
+    current[index] = current[index - 1];
+    current[index - 1] = temp;
+    onChange({ ...data, items: current });
+  };
+
+  const moveItemDown = (index) => {
+    const current = Array.isArray(data.items) ? [...data.items] : [];
+    if (index >= current.length - 1) return;
+    const temp = current[index];
+    current[index] = current[index + 1];
+    current[index + 1] = temp;
+    onChange({ ...data, items: current });
   };
 
   const handleClearEnterprise = async () => {
@@ -706,14 +724,66 @@ export default function BillForm({ data, onChange }) {
         <div key={index} className="item-row">
           <div className="item-row-desc">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <label style={{ margin: 0 }}>Description</label>
-              <button
-                className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.5rem', background: '#fee2e2', border: '1px solid #fca5a5' }}
-                onClick={() => removeItem(index)}
-              >
-                <Trash2 size={16} color="#ef4444" />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '22px',
+                  height: '22px',
+                  padding: '0 4px',
+                  borderRadius: '11px',
+                  background: 'var(--primary)',
+                  color: '#ffffff',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold'
+                }}>
+                  #{index + 1}
+                </span>
+                <label style={{ margin: 0 }}>Description</label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={index === 0}
+                  title="Move Item Up (Slide Up)"
+                  style={{
+                    padding: '0.25rem 0.45rem',
+                    opacity: index === 0 ? 0.35 : 1,
+                    cursor: index === 0 ? 'not-allowed' : 'pointer'
+                  }}
+                  onClick={() => moveItemUp(index)}
+                >
+                  <ChevronUp size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={index === (data.items || []).length - 1}
+                  title="Move Item Down (Slide Down)"
+                  style={{
+                    padding: '0.25rem 0.45rem',
+                    opacity: index === (data.items || []).length - 1 ? 0.35 : 1,
+                    cursor: index === (data.items || []).length - 1 ? 'not-allowed' : 'pointer'
+                  }}
+                  onClick={() => moveItemDown(index)}
+                >
+                  <ChevronDown size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  title="Delete Item"
+                  style={{ padding: '0.25rem 0.45rem', background: '#fee2e2', border: '1px solid #fca5a5' }}
+                  onClick={() => removeItem(index)}
+                >
+                  <Trash2 size={16} color="#ef4444" />
+                </button>
+              </div>
             </div>
             <input type="text" className="form-control" value={item.desc} onChange={(e) => handleItemChange(index, 'desc', e.target.value)} />
           </div>

@@ -9,12 +9,16 @@ export default function BillPreview({ data, previewRef }) {
     return safeItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   };
 
-  const ITEMS_PER_PAGE = 6;
-  const pages = [];
-  for (let i = 0; i < safeItems.length; i += ITEMS_PER_PAGE) {
-    pages.push(safeItems.slice(i, i + ITEMS_PER_PAGE));
-  }
-  if (pages.length === 0) pages.push([]);
+  // Dynamic page layout calculation based on item description lengths & page space
+  const getItemHeight = (item) => {
+    const desc = item.desc || '';
+    const lines = desc.split('\n');
+    let lineCount = 0;
+    for (const line of lines) {
+      lineCount += Math.max(1, Math.ceil(line.length / 50));
+    }
+    return Math.max(30, 14 + lineCount * 17);
+  };
 
   const total = calculateTotal();
   const taxType = data.taxType || 'With GST & Cess';
@@ -28,7 +32,82 @@ export default function BillPreview({ data, previewRef }) {
   const grandTotal = hasCess ? (amountBeforeCess + cess) : amountBeforeCess;
 
   const rowSpanCount = (hasGST && hasCess) ? 5 : hasGST ? 3 : 2;
-  const extraSpacer = (5 - rowSpanCount) * 22;
+
+  // Space constants (for 297mm A4 with 15mm padding at 96 DPI: ~1006px usable height)
+  const AVAILABLE_PAGE_HEIGHT = 1006;
+  const workNameLines = Math.max(1, Math.ceil((data.workName || '').length / 60));
+  const workInfoHeight = 76 + (workNameLines - 1) * 16;
+  const topFixedContentHeight = 24 + 228 + 42 + workInfoHeight; // Banner (24) + Header Table (228) + thead (42) + work info
+
+  const totalsHeight = 32 + (hasGST ? 42 : 0) + (hasCess ? 48 : 0) + 28;
+  const footerHeight = 110;
+  const lastPageBottomHeight = totalsHeight + footerHeight; // Room required by calculations and footer at the bottom
+  const carriedOverRowHeight = 32;
+
+  // Space available for items on a page that also holds totals & footer (leaving min 25px table spacer)
+  const maxSpaceWithCalculations = Math.max(100, AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight - 25);
+  // Space available for items on an intermediate page (with only Carried Over row at bottom, leaving min 25px spacer)
+  const maxSpaceIntermediate = Math.max(150, AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight - 25);
+
+  // Pure space-based pagination:
+  // Add items to a page as long as there is physical space.
+  // If an item does not fit, move it to the next page.
+  const pages = [];
+  let itemIndex = 0;
+
+  while (itemIndex < safeItems.length) {
+    const pageStartIndex = itemIndex;
+    const pageItems = [];
+    let currentItemsHeight = 0;
+
+    // Check if ALL remaining items can fit on this page together with calculations
+    let allRemainingHeight = 0;
+    for (let j = itemIndex; j < safeItems.length; j++) {
+      allRemainingHeight += getItemHeight(safeItems[j]);
+    }
+
+    if (allRemainingHeight <= maxSpaceWithCalculations) {
+      // All remaining items fit on this page with calculations!
+      for (let j = itemIndex; j < safeItems.length; j++) {
+        pageItems.push(safeItems[j]);
+      }
+      pages.push({
+        items: pageItems,
+        startIndex: pageStartIndex
+      });
+      break;
+    }
+
+    // Otherwise, this page cannot fit everything + calculations, so it's an intermediate page.
+    // Fill this page with as many items as physically fit in maxSpaceIntermediate!
+    // (Must leave at least 1 item for subsequent pages where calculations will be placed)
+    while (itemIndex < safeItems.length) {
+      const item = safeItems[itemIndex];
+      const h = getItemHeight(item);
+      const remainingAfterThis = safeItems.length - (itemIndex + 1);
+
+      // If adding this item exceeds intermediate space, or if taking all remaining would leave 0 items for calculations
+      const exceedsSpace = currentItemsHeight + h > maxSpaceIntermediate;
+      const leavesNoItemForNext = remainingAfterThis === 0 && currentItemsHeight + h > maxSpaceWithCalculations;
+
+      if (pageItems.length > 0 && (exceedsSpace || leavesNoItemForNext)) {
+        break; // Page has no more space for this item, stop and move to next page!
+      }
+
+      pageItems.push(item);
+      currentItemsHeight += h;
+      itemIndex++;
+    }
+
+    pages.push({
+      items: pageItems,
+      startIndex: pageStartIndex
+    });
+  }
+
+  if (pages.length === 0) {
+    pages.push({ items: safeItems, startIndex: 0 });
+  }
 
   // Indian Currency Number to Words converter
   const numberToWords = (num) => {
@@ -77,8 +156,14 @@ export default function BillPreview({ data, previewRef }) {
 
   return (
     <div className="preview-card" style={{ overflowX: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--preview-container-bg)' }} ref={previewRef}>
-      {pages.map((pageItems, pageIndex) => {
+      {pages.map((pageData, pageIndex) => {
+        const pageItems = pageData.items;
         const isLastPage = pageIndex === pages.length - 1;
+        const pageItemsHeight = pageItems.reduce((sum, item) => sum + getItemHeight(item), 0);
+        const availableTableSpace = isLastPage
+          ? AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight
+          : AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight;
+        const spacerHeight = Math.max(30, availableTableSpace - pageItemsHeight);
         
         return (
           <div
@@ -206,7 +291,7 @@ export default function BillPreview({ data, previewRef }) {
                   
                   {/* Items */}
                   {pageItems.map((item, index) => {
-                    const globalIndex = (pageIndex * ITEMS_PER_PAGE) + index;
+                    const globalIndex = (pageData.startIndex ?? 0) + index;
                     return (
                       <tr key={globalIndex}>
                         <td className="text-center">{globalIndex + 1}</td>
@@ -222,21 +307,13 @@ export default function BillPreview({ data, previewRef }) {
                   })}
                   
                   {/* Single vertical spacer row extending column borders in the middle */}
-                  {(() => {
-                    const spacerHeight = isLastPage
-                      ? Math.max(40, 310 - pageItems.length * 32 + (extraSpacer ? Math.min(extraSpacer, 60) : 0))
-                      : Math.max(60, 480 - pageItems.length * 32 + extraSpacer);
-
-                    return (
-                      <tr style={{ height: '100%' }}>
-                        <td style={{ height: `${spacerHeight}px` }}></td>
-                        <td style={{ height: `${spacerHeight}px` }}></td>
-                        <td style={{ height: `${spacerHeight}px` }}></td>
-                        <td style={{ height: `${spacerHeight}px` }}></td>
-                        <td style={{ height: `${spacerHeight}px` }}></td>
-                      </tr>
-                    );
-                  })()}
+                  <tr style={{ height: `${spacerHeight}px` }}>
+                    <td style={{ height: `${spacerHeight}px` }}></td>
+                    <td style={{ height: `${spacerHeight}px` }}></td>
+                    <td style={{ height: `${spacerHeight}px` }}></td>
+                    <td style={{ height: `${spacerHeight}px` }}></td>
+                    <td style={{ height: `${spacerHeight}px` }}></td>
+                  </tr>
 
                   {/* Totals - Only on Last Page */}
                   {isLastPage ? (
