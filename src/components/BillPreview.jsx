@@ -39,7 +39,7 @@ export default function BillPreview({ data, previewRef }) {
   // Space constants (for 297mm A4 with 15mm padding at 96 DPI: ~1009px usable height)
   const AVAILABLE_PAGE_HEIGHT = 1009;
   const workNameLines = Math.max(1, Math.ceil((data.workName || '').length / 65));
-  const workInfoHeight = 56 + (workNameLines - 1) * 16;
+  const workInfoHeight = 56 + (workNameLines - 1) * 16 + 26;
   const topFixedContentHeight = 20 + 192 + 36 + workInfoHeight; // Banner + Header Table + thead + work info row
 
   const totalsHeight = (hasGST && hasCess) ? 120 : hasGST ? 88 : 56;
@@ -312,13 +312,17 @@ export default function BillPreview({ data, previewRef }) {
                     <td></td>
                     <td colSpan="4">
                       <div className="font-bold">Work Name: {data.workName}</div>
-                      <div style={{ display: 'flex', gap: '40px', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', gap: '40px', marginTop: '8px' }}>
                         <span className="font-bold">Work Order No. : {data.workOrderNo}</span>
                         <span className="font-bold">Date: {data.workOrderDate}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '40px', marginTop: '10px', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', gap: '40px', marginTop: '8px' }}>
                         <span className="font-bold">Date of Commencement :- {data.dateOfCommencement}</span>
                         <span className="font-bold">Date of Completion :- {data.dateOfCompletion}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '40px', marginTop: '8px', marginBottom: '8px' }}>
+                        <span className="font-bold">UBN NO. :- {data.ubnNo || ''}</span>
+                        <span className="font-bold">EB NO. :- {data.ebNo || ''}</span>
                       </div>
                     </td>
                   </tr>

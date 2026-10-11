@@ -8,6 +8,9 @@ import InvoicePreview from './components/InvoicePreview';
 import Login from './components/Login';
 import { DialogProvider, useDialog } from './components/ModalDialog';
 import { apiUrl } from './config';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 const defaultBillData = {
   billType: 'Final Bill',
@@ -545,13 +548,35 @@ function MainApp() {
       }
       
       const fileLabel = getBillIdentifier(billData).replace(/[/\\?%*:|"<>]/g, '-');
-      if (activeDoc === 'invoice') {
-        pdf.save(`KMC-Tax-Invoice-${fileLabel}.pdf`);
+      const fileName = activeDoc === 'invoice'
+        ? `KMC-Tax-Invoice-${fileLabel}.pdf`
+        : `KMC-Bill-${fileLabel}.pdf`;
+
+      const isNative = Capacitor.isNativePlatform?.() || window.Capacitor?.isNativePlatform?.();
+
+      if (isNative) {
+        // In Android app, save file to cache and launch native Android share/save sheet
+        const dataUri = pdf.output('datauristring');
+        const base64Data = dataUri.split(',')[1];
+
+        const writeResult = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Cache
+        });
+
+        await Share.share({
+          title: fileName,
+          text: `KMC Billing - ${fileName}`,
+          url: writeResult.uri,
+          dialogTitle: 'Save or Share PDF'
+        });
       } else {
-        pdf.save(`KMC-Bill-${fileLabel}.pdf`);
+        pdf.save(fileName);
       }
-    } catch {
-      await showAlert('Failed to generate PDF', {
+    } catch (err) {
+      console.error('PDF error:', err);
+      await showAlert(`Failed to generate or save PDF (${err?.message || 'Error'}).`, {
         title: 'Export Error',
         type: 'error'
       });
