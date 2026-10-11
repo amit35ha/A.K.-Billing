@@ -320,10 +320,12 @@ export default function BillPreview({ data, previewRef }) {
                         <span className="font-bold">Date of Commencement :- {data.dateOfCommencement}</span>
                         <span className="font-bold">Date of Completion :- {data.dateOfCompletion}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '40px', marginTop: '8px', marginBottom: '8px' }}>
-                        <span className="font-bold">UBN NO. :- {data.ubnNo || ''}</span>
-                        <span className="font-bold">EB NO. :- {data.ebNo || ''}</span>
-                      </div>
+                      {pageIndex === 0 && (
+                        <div style={{ display: 'flex', gap: '40px', marginTop: '8px', marginBottom: '8px' }}>
+                          <span className="font-bold">UBN NO. :- {data.ubnNo || ''}</span>
+                          <span className="font-bold">EB NO. :- {data.ebNo || ''}</span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                   
@@ -447,20 +449,22 @@ export default function BillPreview({ data, previewRef }) {
                       (Rupees in Word): {numberToWords(billAmount)}
                     </div>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                        <span>UBN NO:</span>
-                        <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
-                          {data.ubnNo || ''}
-                        </span>
+                    {pageIndex === 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <span>UBN NO:</span>
+                          <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                            {data.ubnNo || ''}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <span>EB NO:</span>
+                          <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                            {data.ebNo || ''}
+                          </span>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                        <span>EB NO:</span>
-                        <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
-                          {data.ebNo || ''}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                   
                   {/* Right Column: Contractor Signature & Seal */}
