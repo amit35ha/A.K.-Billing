@@ -39,18 +39,19 @@ export default function BillPreview({ data, previewRef }) {
   // Space constants (for 297mm A4 with 15mm padding at 96 DPI: ~1009px usable height)
   const AVAILABLE_PAGE_HEIGHT = 1009;
   const workNameLines = Math.max(1, Math.ceil((data.workName || '').length / 65));
-  const workInfoHeight = 56 + (workNameLines - 1) * 16 + 26;
+  const workInfoHeight = 56 + (workNameLines - 1) * 16;
   const topFixedContentHeight = 20 + 192 + 36 + workInfoHeight; // Banner + Header Table + thead + work info row
 
   const totalsHeight = (hasGST && hasCess) ? 120 : hasGST ? 88 : 56;
   const footerHeight = 84;
   const lastPageBottomHeight = totalsHeight + footerHeight; // Room required by calculations and footer at bottom
   const carriedOverRowHeight = 28;
+  const page1BottomHeight = 56; // Room for UBN (1st line) & EB (2nd line) at bottom of Page 1
 
   // Space available for items on a page that also holds totals & footer
   const maxSpaceWithCalculations = AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight - 10;
-  // Space available for items on an intermediate page (with Carried Over row at bottom)
-  const maxSpaceIntermediate = AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight - 10;
+  // Space available for items on Page 1 when intermediate (with Carried Over row + bottom UBN/EB block)
+  const maxSpaceIntermediate = AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight - page1BottomHeight - 10;
 
   // Fill the page first, add calculations if space allows; otherwise break to next page
   const pages = [];
@@ -187,9 +188,10 @@ export default function BillPreview({ data, previewRef }) {
         const pageItems = pageData.items;
         const isLastPage = pageData.hasCalculations;
         const pageItemsHeight = pageItems.reduce((sum, item) => sum + getItemHeight(item), 0);
-        const availableTableSpace = isLastPage
-          ? AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight
-          : AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight;
+        const pageBottomReserved = isLastPage
+          ? lastPageBottomHeight
+          : (pageIndex === 0 ? carriedOverRowHeight + page1BottomHeight : carriedOverRowHeight);
+        const availableTableSpace = AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - pageBottomReserved;
 
         // Distribute extra space as vertical padding across items
         // so Page 1 (and intermediate pages) look full and spacious rather than huddled at the top
@@ -316,16 +318,10 @@ export default function BillPreview({ data, previewRef }) {
                         <span className="font-bold">Work Order No. : {data.workOrderNo}</span>
                         <span className="font-bold">Date: {data.workOrderDate}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '40px', marginTop: '8px' }}>
+                      <div style={{ display: 'flex', gap: '40px', marginTop: '10px', marginBottom: '10px' }}>
                         <span className="font-bold">Date of Commencement :- {data.dateOfCommencement}</span>
                         <span className="font-bold">Date of Completion :- {data.dateOfCompletion}</span>
                       </div>
-                      {pageIndex === 0 && (
-                        <div style={{ display: 'flex', gap: '40px', marginTop: '8px', marginBottom: '8px' }}>
-                          <span className="font-bold">UBN NO. :- {data.ubnNo || ''}</span>
-                          <span className="font-bold">EB NO. :- {data.ebNo || ''}</span>
-                        </div>
-                      )}
                     </td>
                   </tr>
                   
@@ -438,6 +434,26 @@ export default function BillPreview({ data, previewRef }) {
                 </tbody>
               </table>
             </div>
+
+            {/* On Page 1 when bill has multiple pages: bottom section with UBN & EB numbers */}
+            {pageIndex === 0 && !isLastPage && (
+              <div style={{ marginTop: '14px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span>UBN NO:</span>
+                    <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ubnNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                      {data.ubnNo || ''}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span>EB NO:</span>
+                    <span style={{ borderBottom: '1.5px dotted #000', minWidth: '220px', display: 'inline-block', fontWeight: data.ebNo ? 'bold' : 'normal', paddingLeft: '4px' }}>
+                      {data.ebNo || ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Footer - Only on Last Page */}
             {isLastPage && (
