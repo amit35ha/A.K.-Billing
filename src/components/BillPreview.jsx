@@ -124,6 +124,18 @@ export default function BillPreview({ data, previewRef }) {
     });
   }
 
+  // If 2 or more pages are used in a bill, but the last page has no items:
+  // Move the last item from the previous page to the last page so Page 2 always has an item
+  if (pages.length >= 2) {
+    const lastPage = pages[pages.length - 1];
+    const prevPage = pages[pages.length - 2];
+    if (lastPage.items.length === 0 && prevPage.items.length > 1) {
+      const movedItem = prevPage.items.pop();
+      lastPage.items.push(movedItem);
+      lastPage.startIndex = prevPage.startIndex + prevPage.items.length;
+    }
+  }
+
   // Indian Currency Number to Words converter
   const numberToWords = (num) => {
     if (isNaN(num) || num <= 0) return "Zero Rupees Only/-";
@@ -178,7 +190,14 @@ export default function BillPreview({ data, previewRef }) {
         const availableTableSpace = isLastPage
           ? AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight
           : AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight;
-        const spacerHeight = Math.max(25, availableTableSpace - pageItemsHeight);
+
+        // Distribute extra space as vertical padding across items
+        // so Page 1 (and intermediate pages) look full and spacious rather than huddled at the top
+        const extraSpace = Math.max(0, availableTableSpace - pageItemsHeight);
+        const perItemExtra = pageItems.length > 0 ? Math.min(22, Math.floor((extraSpace * 0.55) / pageItems.length)) : 0;
+        const itemPadY = 6 + Math.floor(perItemExtra / 2);
+        const distributedItemHeight = perItemExtra * pageItems.length;
+        const spacerHeight = Math.max(20, extraSpace - distributedItemHeight);
         
         return (
           <div
@@ -320,14 +339,14 @@ export default function BillPreview({ data, previewRef }) {
                       const globalIndex = (pageData.startIndex ?? 0) + index;
                       return (
                         <tr key={globalIndex}>
-                          <td className="text-center">{globalIndex + 1}</td>
-                          <td>{item.desc}</td>
-                          <td className="text-center">{item.rate}</td>
-                          <td className="text-center">
+                          <td className="text-center" style={{ padding: `${itemPadY}px 6px`, verticalAlign: 'middle' }}>{globalIndex + 1}</td>
+                          <td style={{ padding: `${itemPadY}px 8px`, verticalAlign: 'middle', lineHeight: 1.5 }}>{item.desc}</td>
+                          <td className="text-center" style={{ padding: `${itemPadY}px 6px`, verticalAlign: 'middle' }}>{item.rate}</td>
+                          <td className="text-center" style={{ padding: `${itemPadY}px 6px`, verticalAlign: 'middle' }}>
                             <div>{item.qty}</div>
                             <div style={{ fontSize: '9px', marginTop: '2px' }}>{item.unit || 'Nos'}</div>
                           </td>
-                          <td className="text-right">{item.amount}</td>
+                          <td className="text-right" style={{ padding: `${itemPadY}px 8px`, verticalAlign: 'middle' }}>{item.amount}</td>
                         </tr>
                       );
                     })
