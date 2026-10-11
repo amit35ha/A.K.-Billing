@@ -15,6 +15,8 @@ export default function InvoicePreview({ data, previewRef }) {
   const amountBeforeCess = total + cgst + sgst;
   const cess = hasCess ? amountBeforeCess * 0.01 : 0;
   const grandTotal = hasCess ? (amountBeforeCess + cess) : amountBeforeCess;
+  const billAmount = Math.round(grandTotal);
+  const roundOff = Number((billAmount - grandTotal).toFixed(2));
 
   // Indian Currency Number to Words
   const numberToWords = (num) => {
@@ -288,13 +290,24 @@ export default function InvoicePreview({ data, previewRef }) {
               </>
             )}
 
+            {/* Round Off (if any decimal difference) */}
+            {Math.abs(roundOff) >= 0.005 && (
+              <tr>
+                <td colSpan="2"></td>
+                <td className="text-center font-bold">Round Off</td>
+                <td className="text-right font-bold">
+                  {roundOff > 0 ? `+${roundOff.toFixed(2)}` : roundOff.toFixed(2)}
+                </td>
+              </tr>
+            )}
+
             {/* Grand Total */}
             <tr style={{ background: '#f8fafc' }}>
               <td colSpan="3" className="text-right font-bold" style={{ fontSize: '13px', padding: '8px' }}>
                 Total Invoice Value:
               </td>
               <td className="text-right font-bold" style={{ fontSize: '13px', padding: '8px' }}>
-                ₹ {grandTotal.toFixed(2)}
+                ₹ {billAmount.toFixed(2)}
               </td>
             </tr>
           </tbody>
@@ -302,7 +315,7 @@ export default function InvoicePreview({ data, previewRef }) {
 
         {/* Amount in words */}
         <div style={{ marginTop: '10px', fontSize: '11px', padding: '6px 8px', border: '1px solid black', background: '#fafafa' }}>
-          <strong>Invoice Amount (in words):</strong> {numberToWords(grandTotal)}
+          <strong>Invoice Amount (in words):</strong> {numberToWords(billAmount)}
         </div>
 
         {/* Footer & Signature Section */}

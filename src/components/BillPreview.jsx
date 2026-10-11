@@ -32,6 +32,7 @@ export default function BillPreview({ data, previewRef }) {
   const amountBeforeCess = total + cgst + sgst;
   const cess = hasCess ? amountBeforeCess * 0.01 : 0;
   const grandTotal = hasCess ? (amountBeforeCess + cess) : amountBeforeCess;
+  const billAmount = Math.round(grandTotal);
 
   const rowSpanCount = (hasGST && hasCess) ? 5 : hasGST ? 3 : 2;
 
@@ -397,7 +398,7 @@ export default function BillPreview({ data, previewRef }) {
 
                       <tr>
                         <td colSpan="2" className="text-center font-bold">Bill Amount</td>
-                        <td className="text-right font-bold">{grandTotal.toFixed(2)}</td>
+                        <td className="text-right font-bold">{billAmount.toFixed(2)}</td>
                       </tr>
                     </>
                   ) : (
@@ -420,7 +421,7 @@ export default function BillPreview({ data, previewRef }) {
                   {/* Left Column: Rupees in Word & UBN / EB numbers */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, paddingRight: '24px' }}>
                     <div style={{ fontWeight: 'bold', fontSize: '11px', lineHeight: 1.4 }}>
-                      (Rupees in Word): {numberToWords(grandTotal)}
+                      (Rupees in Word): {numberToWords(billAmount)}
                     </div>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
