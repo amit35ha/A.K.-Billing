@@ -138,6 +138,8 @@ function MainApp() {
   const [mobileTab, setMobileTab] = useState('form'); // 'form' or 'preview'
   const [zoomMode, setZoomMode] = useState('fit'); // 'fit' or 'full'
   const [windowWidth, setWindowWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1200));
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfProgressText, setPdfProgressText] = useState('');
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -515,26 +517,60 @@ function MainApp() {
   };
 
   const downloadPDF = async () => {
+    setIsGeneratingPdf(true);
+    setPdfProgressText('Initializing PDF export...');
+
+    // Small delay to ensure the loading overlay renders on screen before heavy work
+    await new Promise((r) => setTimeout(r, 150));
+
     const previewCol = document.querySelector('.col-preview');
-    const wasHidden = previewCol && previewCol.classList.contains('mobile-hidden');
-    if (wasHidden) {
-      previewCol.classList.remove('mobile-hidden');
-    }
-
     const zoomContainer = document.querySelector('.preview-zoom-container');
-    const originalZoom = zoomContainer ? zoomContainer.style.zoom : '';
-    if (zoomContainer) {
-      zoomContainer.style.zoom = '1';
-    }
 
-    // Wait a moment for DOM to unhide and reflow
-    await new Promise((r) => setTimeout(r, 120));
+    const originalPreviewStyle = previewCol ? previewCol.getAttribute('style') || '' : '';
+    const originalPreviewClasses = previewCol ? previewCol.className : '';
+    const originalZoom = zoomContainer ? zoomContainer.style.zoom : '';
+    const originalScrollX = window.scrollX;
+    const originalScrollY = window.scrollY;
 
     try {
-      const pages = document.querySelectorAll('.bill-document');
-      if (pages.length === 0) {
-        throw new Error('No bill document found to export');
+      if (!previewCol) {
+        throw new Error('Document preview not found');
       }
+
+      // Temporarily fix previewCol at (0, 0) with exact A4 794px width
+      // Underneath our loading overlay (which has z-index 100000).
+      // By using position: fixed, it DOES NOT push or widen
+      // the mobile viewport layout at all!
+      previewCol.className = 'col-preview pdf-capture-mode';
+      previewCol.style.cssText = `
+        position: fixed !important;
+        top: 0px !important;
+        left: 0px !important;
+        width: 794px !important;
+        min-width: 794px !important;
+        max-width: 794px !important;
+        z-index: 100 !important;
+        background: #ffffff !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: none !important;
+        overflow: visible !important;
+        transform: none !important;
+      `;
+
+      if (zoomContainer) {
+        zoomContainer.style.zoom = '1';
+      }
+
+      // Allow DOM to layout at 100% scale
+      await new Promise((r) => setTimeout(r, 180));
+
+      const pages = previewCol.querySelectorAll('.bill-document');
+      if (pages.length === 0) {
+        throw new Error('No bill document pages found to export');
+      }
+
+      setPdfProgressText(`Formatting ${pages.length} page(s)...`);
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -543,29 +579,40 @@ function MainApp() {
       });
 
       for (let i = 0; i < pages.length; i++) {
+        setPdfProgressText(`Rendering Page ${i + 1} of ${pages.length}...`);
         const page = pages[i];
+
         const canvas = await html2canvas(page, {
           scale: 2,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          windowWidth: 794,
+          scrollX: 0,
+          scrollY: 0
         });
 
         if (!canvas || canvas.width === 0 || canvas.height === 0) {
-          throw new Error('Canvas render was empty');
+          throw new Error(`Failed to capture page ${i + 1}`);
         }
 
         const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        if (!imgData || imgData === 'data:,') {
+          throw new Error(`Invalid image output for page ${i + 1}`);
+        }
+
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        
+
         if (i > 0) {
           pdf.addPage();
         }
-        
+
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
-      
+
+      setPdfProgressText('Saving PDF to device storage...');
+
       const fileLabel = getBillIdentifier(billData).replace(/[/\\?%*:|"<>]/g, '-');
       const fileName = activeDoc === 'invoice'
         ? `KMC-Tax-Invoice-${fileLabel}.pdf`
@@ -574,24 +621,58 @@ function MainApp() {
       const isNative = Capacitor.isNativePlatform?.() || window.Capacitor?.isNativePlatform?.();
 
       if (isNative) {
-        // In Android app, save file to cache and launch native Android share/save sheet
         const dataUri = pdf.output('datauristring');
         const base64Data = dataUri.split(',')[1];
 
-        const writeResult = await Filesystem.writeFile({
-          path: fileName,
-          data: base64Data,
-          directory: Directory.Cache
-        });
+        let savedUri = null;
+        let storageLocation = 'Phone Documents';
 
-        await Share.share({
-          title: fileName,
-          text: `KMC Billing - ${fileName}`,
-          url: writeResult.uri,
-          dialogTitle: 'Save or Share PDF'
+        // Try writing to public/external Documents directory first
+        try {
+          const docRes = await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true
+          });
+          savedUri = docRes.uri;
+          storageLocation = 'Documents folder';
+        } catch (e1) {
+          console.warn('Could not write to Documents, saving to App Storage:', e1);
+          const cacheRes = await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Cache,
+            recursive: true
+          });
+          savedUri = cacheRes.uri;
+          storageLocation = 'App Storage';
+        }
+
+        // Launch native Android Share / Save Sheet so user can choose to save or send anywhere
+        if (savedUri) {
+          try {
+            await Share.share({
+              title: fileName,
+              text: `KMC Billing - ${fileName}`,
+              url: savedUri,
+              dialogTitle: 'Save to Phone Storage or Share PDF'
+            });
+          } catch (shareErr) {
+            console.log('Share sheet dismissed:', shareErr);
+          }
+        }
+
+        await showAlert(`PDF "${fileName}" saved successfully to ${storageLocation}!`, {
+          title: 'PDF Saved Successfully',
+          type: 'success'
         });
       } else {
         pdf.save(fileName);
+        await showAlert(`PDF "${fileName}" downloaded successfully!`, {
+          title: 'Download Complete',
+          type: 'success'
+        });
       }
     } catch (err) {
       console.error('PDF error:', err);
@@ -600,12 +681,16 @@ function MainApp() {
         type: 'error'
       });
     } finally {
+      if (previewCol) {
+        previewCol.className = originalPreviewClasses;
+        previewCol.setAttribute('style', originalPreviewStyle);
+      }
       if (zoomContainer) {
         zoomContainer.style.zoom = originalZoom;
       }
-      if (wasHidden && previewCol) {
-        previewCol.classList.add('mobile-hidden');
-      }
+      window.scrollTo(originalScrollX, originalScrollY);
+      setIsGeneratingPdf(false);
+      setPdfProgressText('');
     }
   };
 
@@ -694,8 +779,19 @@ function MainApp() {
             {activeDoc === 'invoice' ? <FileText size={18} /> : <Receipt size={18} />}
             {activeDoc === 'invoice' ? "View Contractor's Bill" : 'Generate Invoice'}
           </button>
-          <button className="btn" onClick={downloadPDF} style={{ display: 'flex', gap: '0.4rem', backgroundColor: '#2563eb' }}>
-            <Download size={18} /> {activeDoc === 'invoice' ? 'Download Invoice PDF' : 'Download PDF'}
+          <button
+            className="btn"
+            onClick={downloadPDF}
+            disabled={isGeneratingPdf}
+            style={{
+              display: 'flex',
+              gap: '0.4rem',
+              backgroundColor: '#2563eb',
+              opacity: isGeneratingPdf ? 0.7 : 1,
+              cursor: isGeneratingPdf ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <Download size={18} /> {isGeneratingPdf ? 'Generating PDF...' : (activeDoc === 'invoice' ? 'Download Invoice PDF' : 'Download PDF')}
           </button>
           {loadedBillId && (
             <button
@@ -979,6 +1075,27 @@ function MainApp() {
           )}
         </div>
       </div>
+
+      {/* PDF Export Loading Screen Modal */}
+      {isGeneratingPdf && (
+        <div className="pdf-loading-overlay">
+          <div className="pdf-loading-card">
+            <div className="pdf-spinner" />
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: '#ffffff', fontWeight: 700 }}>
+              Generating PDF...
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+              {pdfProgressText || 'Please wait while we format and save your document...'}
+            </p>
+            <div className="pdf-progress-bar-track">
+              <div className="pdf-progress-bar-fill" />
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.85rem' }}>
+              Saving to device storage
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
