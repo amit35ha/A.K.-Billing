@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { Download, Save, FolderOpen, LogOut, Trash2, FileText, Receipt, PlusCircle, Sun, Moon, Upload } from 'lucide-react';
+import { Download, Save, FolderOpen, LogOut, Trash2, FileText, Receipt, PlusCircle, Sun, Moon, Upload, Smartphone, ZoomIn } from 'lucide-react';
 import BillForm from './components/BillForm';
 import BillPreview from './components/BillPreview';
 import InvoicePreview from './components/InvoicePreview';
@@ -132,6 +132,25 @@ function MainApp() {
 
   const [savedBills, setSavedBills] = useState([]);
   const [showSaved, setShowSaved] = useState(false);
+  const [mobileTab, setMobileTab] = useState('form'); // 'form' or 'preview'
+  const [zoomMode, setZoomMode] = useState('fit'); // 'fit' or 'full'
+  const [windowWidth, setWindowWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1200));
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const previewZoom = React.useMemo(() => {
+    if (zoomMode === 'full') return 1;
+    if (windowWidth < 900) {
+      // Document is ~794px wide. Available phone width is windowWidth - 28px
+      const fitRatio = Math.min(1, Math.max(0.35, (windowWidth - 28) / 794));
+      return Number(fitRatio.toFixed(3));
+    }
+    return 1;
+  }, [zoomMode, windowWidth]);
 
   const previewRef = useRef(null);
 
@@ -493,10 +512,17 @@ function MainApp() {
   };
 
   const downloadPDF = async () => {
-    const pages = document.querySelectorAll('.bill-document');
-    if (pages.length === 0) return;
+    const zoomContainer = document.querySelector('.preview-zoom-container');
+    const originalZoom = zoomContainer ? zoomContainer.style.zoom : '';
+    if (zoomContainer) {
+      zoomContainer.style.zoom = '1';
+      await new Promise((r) => setTimeout(r, 60));
+    }
 
     try {
+      const pages = document.querySelectorAll('.bill-document');
+      if (pages.length === 0) return;
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -529,6 +555,10 @@ function MainApp() {
         title: 'Export Error',
         type: 'error'
       });
+    } finally {
+      if (zoomContainer) {
+        zoomContainer.style.zoom = originalZoom;
+      }
     }
   };
 
@@ -772,64 +802,135 @@ function MainApp() {
         </div>
       )}
 
-      <div>
-        <BillForm data={billData} onChange={setBillData} />
+      {/* Mobile View Mode Tabs */}
+      <div className="mobile-view-tabs">
+        <button
+          type="button"
+          className={`mobile-view-tab-btn ${mobileTab === 'form' ? 'active' : ''}`}
+          onClick={() => setMobileTab('form')}
+        >
+          <FileText size={17} /> Edit Bill Form
+        </button>
+        <button
+          type="button"
+          className={`mobile-view-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+          onClick={() => {
+            setMobileTab('preview');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
+          <Receipt size={17} /> View Preview ({activeDoc === 'bill' ? 'Bill' : 'Invoice'})
+        </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {/* Document Tab Switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--tab-bar-bg)', padding: '0.4rem', borderRadius: '0.5rem', border: '1px solid var(--border)', width: 'fit-content' }}>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setActiveDoc('bill')}
-            style={{
-              padding: '0.45rem 1rem',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              borderRadius: '6px',
-              background: activeDoc === 'bill' ? '#2563eb' : 'var(--tab-inactive-bg)',
-              color: activeDoc === 'bill' ? '#ffffff' : 'var(--tab-inactive-text)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.2s'
-            }}
-          >
-            <FileText size={16} />
-            Contractor's Bill (Form 65)
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setActiveDoc('invoice')}
-            style={{
-              padding: '0.45rem 1rem',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              borderRadius: '6px',
-              background: activeDoc === 'invoice' ? '#0891b2' : 'var(--tab-inactive-bg)',
-              color: activeDoc === 'invoice' ? '#ffffff' : 'var(--tab-inactive-text)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.2s'
-            }}
-          >
-            <Receipt size={16} />
-            Tax Invoice
-          </button>
+      <div className={`col-form ${mobileTab !== 'form' ? 'mobile-hidden' : ''}`}>
+        <BillForm
+          data={billData}
+          onChange={setBillData}
+          onViewPreview={() => {
+            setMobileTab('preview');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      </div>
+
+      <div className={`col-preview ${mobileTab !== 'preview' ? 'mobile-hidden' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Document Tab Switcher & Mobile Zoom Controls */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          {/* Document Tab Switcher */}
+          <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--tab-bar-bg)', padding: '0.35rem', borderRadius: '0.5rem', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setActiveDoc('bill')}
+              style={{
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                borderRadius: '6px',
+                background: activeDoc === 'bill' ? '#2563eb' : 'var(--tab-inactive-bg)',
+                color: activeDoc === 'bill' ? '#ffffff' : 'var(--tab-inactive-text)',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s'
+              }}
+            >
+              <FileText size={15} />
+              Form 65 Bill
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setActiveDoc('invoice')}
+              style={{
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                borderRadius: '6px',
+                background: activeDoc === 'invoice' ? '#0891b2' : 'var(--tab-inactive-bg)',
+                color: activeDoc === 'invoice' ? '#ffffff' : 'var(--tab-inactive-text)',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Receipt size={15} />
+              Tax Invoice
+            </button>
+          </div>
+
+          {/* Zoom Toggle (Fit Screen / 100% View) */}
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setZoomMode((prev) => (prev === 'fit' ? 'full' : 'fit'))}
+              title={zoomMode === 'fit' ? 'Zoom to 100% original size' : 'Fit document width to phone screen'}
+              style={{
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontWeight: 600
+              }}
+            >
+              {zoomMode === 'fit' ? (
+                <>
+                  <ZoomIn size={15} color="#2563eb" /> 100% View
+                </>
+              ) : (
+                <>
+                  <Smartphone size={15} color="#10b981" /> Fit Screen
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
-        {activeDoc === 'bill' ? (
-          <BillPreview data={billData} previewRef={previewRef} />
-        ) : (
-          <InvoicePreview data={billData} previewRef={previewRef} />
-        )}
+        {/* Scaled Preview Wrapper */}
+        <div
+          className="preview-zoom-container"
+          style={{
+            zoom: previewZoom !== 1 ? previewZoom : undefined,
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
+          }}
+        >
+          {activeDoc === 'bill' ? (
+            <BillPreview data={billData} previewRef={previewRef} />
+          ) : (
+            <InvoicePreview data={billData} previewRef={previewRef} />
+          )}
+        </div>
       </div>
     </div>
   );

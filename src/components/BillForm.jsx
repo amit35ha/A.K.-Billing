@@ -3,7 +3,7 @@ import { Plus, Trash2, Building2, UserPlus, Pencil, X, FileText, ChevronUp, Chev
 import { useDialog } from './ModalDialog';
 import { apiUrl } from '../config';
 
-export default function BillForm({ data, onChange }) {
+export default function BillForm({ data, onChange, onViewPreview }) {
   const { showAlert, showConfirm } = useDialog();
   const [contractors, setContractors] = useState([]);
   const [selectedContractorId, setSelectedContractorId] = useState('');
@@ -826,9 +826,32 @@ export default function BillForm({ data, onChange }) {
           </div>
         </div>
       ))}
-      <button className="btn btn-secondary" style={{ marginTop: '1rem', width: '100%' }} onClick={addItem}>
-        <Plus size={18} style={{ marginRight: '0.5rem' }} /> Add Item
-      </button>
+      <div style={{ display: 'flex', gap: '0.65rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ flex: '1 1 160px', padding: '0.75rem' }}
+          onClick={addItem}
+        >
+          <Plus size={18} style={{ marginRight: '0.5rem' }} /> Add Item
+        </button>
+        {onViewPreview && (
+          <button
+            type="button"
+            className="btn"
+            style={{
+              flex: '1 1 200px',
+              padding: '0.75rem',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              fontWeight: 600
+            }}
+            onClick={onViewPreview}
+          >
+            <FileText size={18} style={{ marginRight: '0.5rem' }} /> View Preview & PDF
+          </button>
+        )}
+      </div>
 
       {/* Add / Edit Contractor Modal */}
       {showModal && (
@@ -848,9 +871,11 @@ export default function BillForm({ data, onChange }) {
           <div style={{
             background: 'var(--modal-bg)',
             borderRadius: '0.75rem',
-            padding: '1.5rem',
+            padding: '1.25rem',
             width: '100%',
             maxWidth: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             boxShadow: 'var(--shadow-card)',
             border: '1px solid var(--border)'
           }}>

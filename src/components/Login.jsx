@@ -46,7 +46,7 @@ export default function Login({ onLogin, theme, onToggleTheme }) {
     }}>
       <div style={{
         background: 'var(--card-bg)',
-        padding: '2.5rem',
+        padding: 'clamp(1.5rem, 5vw, 2.5rem)',
         borderRadius: '1rem',
         boxShadow: 'var(--shadow-card)',
         width: '100%',
