@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, ShieldCheck, Sun, Moon } from 'lucide-react';
+import { apiUrl } from '../config';
 
 export default function Login({ onLogin, theme, onToggleTheme }) {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ export default function Login({ onLogin, theme, onToggleTheme }) {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch(apiUrl('/api/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -25,8 +26,9 @@ export default function Login({ onLogin, theme, onToggleTheme }) {
       } else {
         setError(data.error || 'Invalid email or password');
       }
-    } catch {
-      setError('Unable to connect to server. Please try again.');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(`Unable to connect to server (${err?.message || 'Network error'}). Please try again.`);
     } finally {
       setLoading(false);
     }

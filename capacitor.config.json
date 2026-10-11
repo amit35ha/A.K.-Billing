@@ -1,0 +1,14 @@
+{
+  "appId": "com.kmcbilling.app",
+  "appName": "KMC Billing",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

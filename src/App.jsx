@@ -7,6 +7,7 @@ import BillPreview from './components/BillPreview';
 import InvoicePreview from './components/InvoicePreview';
 import Login from './components/Login';
 import { DialogProvider, useDialog } from './components/ModalDialog';
+import { apiUrl } from './config';
 
 const defaultBillData = {
   billType: 'Final Bill',
@@ -94,14 +95,14 @@ function MainApp() {
   useEffect(() => {
     const localBackup = getLocalBackup();
     if (localBackup.length > 0) {
-      fetch('/api/bills')
+      fetch(apiUrl('/api/bills'))
         .then((r) => r.json())
         .then((serverBills) => {
           if (Array.isArray(serverBills)) {
             const serverWoSet = new Set(serverBills.map((b) => (b.workOrderNo || '').trim().toLowerCase()));
             const missing = localBackup.filter((b) => !serverWoSet.has((b.workOrderNo || '').trim().toLowerCase()));
             if (missing.length > 0) {
-              fetch('/api/bills/bulk-import', {
+              fetch(apiUrl('/api/bills/bulk-import'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(missing)
@@ -158,7 +159,7 @@ function MainApp() {
 
   const fetchBills = async () => {
     try {
-      const response = await fetch('/api/bills');
+      const response = await fetch(apiUrl('/api/bills'));
       let data = await response.json();
       if (!Array.isArray(data)) data = [];
 
@@ -170,13 +171,13 @@ function MainApp() {
         const missingOnServer = localBackup.filter((b) => !serverWoSet.has((b.workOrderNo || '').trim().toLowerCase()));
 
         if (missingOnServer.length > 0) {
-          await fetch('/api/bills/bulk-import', {
+          await fetch(apiUrl('/api/bills/bulk-import'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(missingOnServer)
           }).catch(() => {});
 
-          const refreshed = await fetch('/api/bills');
+          const refreshed = await fetch(apiUrl('/api/bills'));
           const refData = await refreshed.json();
           if (Array.isArray(refData)) {
             data = refData;
@@ -190,7 +191,7 @@ function MainApp() {
           if (b.workOrderNo) {
             const existingInLocal = localBackup.find((lb) => (lb.workOrderNo || '').trim().toLowerCase() === b.workOrderNo.trim().toLowerCase());
             if (!existingInLocal && b.id) {
-              fetch(`/api/bills/${b.id}`)
+              fetch(apiUrl(`/api/bills/${b.id}`))
                 .then((r) => r.json())
                 .then((full) => {
                   if (full && full.data) {
@@ -230,7 +231,7 @@ function MainApp() {
 
     try {
       // Check existing saved bills for duplicate
-      const listRes = await fetch('/api/bills');
+      const listRes = await fetch(apiUrl('/api/bills'));
       const list = await listRes.json();
       const existing = Array.isArray(list) ? list.find((b) => {
         if (!b.workOrderNo) return false;
@@ -262,7 +263,7 @@ function MainApp() {
           return;
         }
 
-        const updateRes = await fetch(`/api/bills/${existing.id}`, {
+        const updateRes = await fetch(apiUrl(`/api/bills/${existing.id}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -297,7 +298,7 @@ function MainApp() {
       }
 
       // New bill save
-      const response = await fetch('/api/bills', {
+      const response = await fetch(apiUrl('/api/bills'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -342,7 +343,7 @@ function MainApp() {
       let rawData = null;
       let rawSavedWO = '';
       try {
-        const response = await fetch(`/api/bills/${id}`);
+        const response = await fetch(apiUrl(`/api/bills/${id}`));
         const resData = await response.json();
         if (resData && resData.data) {
           rawData = resData.data;
@@ -414,7 +415,7 @@ function MainApp() {
     }
     removeBillFromLocalBackup(id);
     try {
-      const response = await fetch(`/api/bills/${id}`, {
+      const response = await fetch(apiUrl(`/api/bills/${id}`), {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -476,7 +477,7 @@ function MainApp() {
       for (const item of imported) {
         saveBillToLocalBackup(item);
       }
-      await fetch('/api/bills/bulk-import', {
+      await fetch(apiUrl('/api/bills/bulk-import'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(imported)

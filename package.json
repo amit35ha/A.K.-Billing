@@ -8,6 +8,8 @@
     "start": "node server.cjs",
     "server": "node server.cjs",
     "build": "vite build",
+    "build:android": "vite build && cap sync android",
+    "open:android": "cap open android",
     "render-build": "npm rebuild sqlite3 --build-from-source && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -16,6 +18,9 @@
     "node": ">=20.0.0 <23.0.0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "concurrently": "^10.0.6",
     "cors": "^2.8.6",
     "express": "^5.2.1",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Building2, UserPlus, Pencil, X, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { useDialog } from './ModalDialog';
+import { apiUrl } from '../config';
 
 export default function BillForm({ data, onChange }) {
   const { showAlert, showConfirm } = useDialog();
@@ -19,7 +20,7 @@ export default function BillForm({ data, onChange }) {
 
   const fetchContractors = async () => {
     try {
-      const res = await fetch('/api/contractors');
+      const res = await fetch(apiUrl('/api/contractors'));
       const list = await res.json();
       if (Array.isArray(list)) {
         setContractors(list);
@@ -31,7 +32,7 @@ export default function BillForm({ data, onChange }) {
 
   useEffect(() => {
     let ignore = false;
-    fetch('/api/contractors')
+    fetch(apiUrl('/api/contractors'))
       .then((res) => res.json())
       .then((list) => {
         if (!ignore && Array.isArray(list)) {
@@ -96,7 +97,7 @@ export default function BillForm({ data, onChange }) {
 
     try {
       if (modalMode === 'add') {
-        const res = await fetch('/api/contractors', {
+        const res = await fetch(apiUrl('/api/contractors'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(contractorForm)
@@ -121,7 +122,7 @@ export default function BillForm({ data, onChange }) {
         }
       } else {
         // Edit mode
-        const res = await fetch(`/api/contractors/${selectedContractorId}`, {
+        const res = await fetch(apiUrl(`/api/contractors/${selectedContractorId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(contractorForm)
@@ -168,7 +169,7 @@ export default function BillForm({ data, onChange }) {
     }
 
     try {
-      const res = await fetch(`/api/contractors/${selectedContractorId}`, {
+      const res = await fetch(apiUrl(`/api/contractors/${selectedContractorId}`), {
         method: 'DELETE'
       });
       if (res.ok) {
