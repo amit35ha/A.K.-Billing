@@ -515,16 +515,26 @@ function MainApp() {
   };
 
   const downloadPDF = async () => {
+    const previewCol = document.querySelector('.col-preview');
+    const wasHidden = previewCol && previewCol.classList.contains('mobile-hidden');
+    if (wasHidden) {
+      previewCol.classList.remove('mobile-hidden');
+    }
+
     const zoomContainer = document.querySelector('.preview-zoom-container');
     const originalZoom = zoomContainer ? zoomContainer.style.zoom : '';
     if (zoomContainer) {
       zoomContainer.style.zoom = '1';
-      await new Promise((r) => setTimeout(r, 60));
     }
+
+    // Wait a moment for DOM to unhide and reflow
+    await new Promise((r) => setTimeout(r, 120));
 
     try {
       const pages = document.querySelectorAll('.bill-document');
-      if (pages.length === 0) return;
+      if (pages.length === 0) {
+        throw new Error('No bill document found to export');
+      }
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -534,9 +544,18 @@ function MainApp() {
 
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const canvas = await html2canvas(page, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          throw new Error('Canvas render was empty');
+        }
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
@@ -544,7 +563,7 @@ function MainApp() {
           pdf.addPage();
         }
         
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
       
       const fileLabel = getBillIdentifier(billData).replace(/[/\\?%*:|"<>]/g, '-');
@@ -583,6 +602,9 @@ function MainApp() {
     } finally {
       if (zoomContainer) {
         zoomContainer.style.zoom = originalZoom;
+      }
+      if (wasHidden && previewCol) {
+        previewCol.classList.add('mobile-hidden');
       }
     }
   };
