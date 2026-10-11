@@ -10,8 +10,8 @@ export default function InvoicePreview({ data, previewRef }) {
   const hasGST = taxType === 'With GST & Cess' || taxType === 'With GST';
   const hasCess = taxType === 'With GST & Cess';
 
-  const cgst = hasGST ? total * 0.09 : 0;
-  const sgst = hasGST ? total * 0.09 : 0;
+  const cgst = hasGST ? Math.round(total * 0.09) : 0;
+  const sgst = hasGST ? Math.round(total * 0.09) : 0;
   const amountBeforeCess = total + cgst + sgst;
   const cess = hasCess ? amountBeforeCess * 0.01 : 0;
   const grandTotal = hasCess ? (amountBeforeCess + cess) : amountBeforeCess;
