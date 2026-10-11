@@ -124,7 +124,7 @@ function ModalDialog({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 99999,
+        zIndex: 2000000,
         background: 'rgba(0, 0, 0, 0.55)',
         backdropFilter: 'blur(3px)',
         display: 'flex',

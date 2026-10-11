@@ -520,8 +520,7 @@ function MainApp() {
     setIsGeneratingPdf(true);
     setPdfProgressText('Initializing PDF export...');
 
-    // Small delay to ensure the loading overlay renders on screen before heavy work
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 120));
 
     const previewCol = document.querySelector('.col-preview');
     const zoomContainer = document.querySelector('.preview-zoom-container');
@@ -532,15 +531,27 @@ function MainApp() {
     const originalScrollX = window.scrollX;
     const originalScrollY = window.scrollY;
 
+    const restoreLayout = () => {
+      if (previewCol) {
+        previewCol.className = originalPreviewClasses;
+        previewCol.setAttribute('style', originalPreviewStyle);
+      }
+      if (zoomContainer) {
+        zoomContainer.style.zoom = originalZoom;
+      }
+      window.scrollTo(originalScrollX, originalScrollY);
+      setIsGeneratingPdf(false);
+      setPdfProgressText('');
+    };
+
+    let generatedPdf = null;
+    let targetFileName = '';
+
     try {
       if (!previewCol) {
         throw new Error('Document preview not found');
       }
 
-      // Temporarily fix previewCol at (0, 0) with exact A4 794px width
-      // Underneath our loading overlay (which has z-index 100000).
-      // By using position: fixed, it DOES NOT push or widen
-      // the mobile viewport layout at all!
       previewCol.className = 'col-preview pdf-capture-mode';
       previewCol.style.cssText = `
         position: fixed !important;
@@ -562,8 +573,7 @@ function MainApp() {
         zoomContainer.style.zoom = '1';
       }
 
-      // Allow DOM to layout at 100% scale
-      await new Promise((r) => setTimeout(r, 180));
+      await new Promise((r) => setTimeout(r, 150));
 
       const pages = previewCol.querySelectorAll('.bill-document');
       if (pages.length === 0) {
@@ -582,15 +592,20 @@ function MainApp() {
         setPdfProgressText(`Rendering Page ${i + 1} of ${pages.length}...`);
         const page = pages[i];
 
-        const canvas = await html2canvas(page, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 794,
-          scrollX: 0,
-          scrollY: 0
-        });
+        const canvas = await Promise.race([
+          html2canvas(page, {
+            scale: 2,
+            useCORS: false,
+            logging: false,
+            backgroundColor: '#ffffff',
+            windowWidth: 794,
+            scrollX: 0,
+            scrollY: 0
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout while rendering page ${i + 1}`)), 12000)
+          )
+        ]);
 
         if (!canvas || canvas.width === 0 || canvas.height === 0) {
           throw new Error(`Failed to capture page ${i + 1}`);
@@ -611,26 +626,39 @@ function MainApp() {
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
-      setPdfProgressText('Saving PDF to device storage...');
-
       const fileLabel = getBillIdentifier(billData).replace(/[/\\?%*:|"<>]/g, '-');
-      const fileName = activeDoc === 'invoice'
+      targetFileName = activeDoc === 'invoice'
         ? `KMC-Tax-Invoice-${fileLabel}.pdf`
         : `KMC-Bill-${fileLabel}.pdf`;
 
+      generatedPdf = pdf;
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      restoreLayout();
+      await showAlert(`Failed to generate PDF (${err?.message || 'Error'}).`, {
+        title: 'Export Error',
+        type: 'error'
+      });
+      return;
+    }
+
+    // Dismiss loading overlay and restore DOM layout immediately
+    restoreLayout();
+
+    // Now save / share without loading overlay blocking the screen
+    try {
       const isNative = Capacitor.isNativePlatform?.() || window.Capacitor?.isNativePlatform?.();
 
       if (isNative) {
-        const dataUri = pdf.output('datauristring');
+        const dataUri = generatedPdf.output('datauristring');
         const base64Data = dataUri.split(',')[1];
 
         let savedUri = null;
         let storageLocation = 'Phone Documents';
 
-        // Try writing to public/external Documents directory first
         try {
           const docRes = await Filesystem.writeFile({
-            path: fileName,
+            path: targetFileName,
             data: base64Data,
             directory: Directory.Documents,
             recursive: true
@@ -640,21 +668,20 @@ function MainApp() {
         } catch (e1) {
           console.warn('Could not write to Documents, saving to App Storage:', e1);
           const cacheRes = await Filesystem.writeFile({
-            path: fileName,
+            path: targetFileName,
             data: base64Data,
             directory: Directory.Cache,
             recursive: true
           });
           savedUri = cacheRes.uri;
-          storageLocation = 'App Storage';
+          storageLocation = 'Device Storage';
         }
 
-        // Launch native Android Share / Save Sheet so user can choose to save or send anywhere
         if (savedUri) {
           try {
             await Share.share({
-              title: fileName,
-              text: `KMC Billing - ${fileName}`,
+              title: targetFileName,
+              text: `KMC Billing - ${targetFileName}`,
               url: savedUri,
               dialogTitle: 'Save to Phone Storage or Share PDF'
             });
@@ -663,34 +690,23 @@ function MainApp() {
           }
         }
 
-        await showAlert(`PDF "${fileName}" saved successfully to ${storageLocation}!`, {
+        await showAlert(`PDF "${targetFileName}" saved successfully to ${storageLocation}!`, {
           title: 'PDF Saved Successfully',
           type: 'success'
         });
       } else {
-        pdf.save(fileName);
-        await showAlert(`PDF "${fileName}" downloaded successfully!`, {
+        generatedPdf.save(targetFileName);
+        await showAlert(`PDF "${targetFileName}" downloaded successfully!`, {
           title: 'Download Complete',
           type: 'success'
         });
       }
-    } catch (err) {
-      console.error('PDF error:', err);
-      await showAlert(`Failed to generate or save PDF (${err?.message || 'Error'}).`, {
-        title: 'Export Error',
+    } catch (saveErr) {
+      console.error('Save error:', saveErr);
+      await showAlert(`PDF generated, but saving failed: ${saveErr?.message || 'Unknown error'}`, {
+        title: 'Save Error',
         type: 'error'
       });
-    } finally {
-      if (previewCol) {
-        previewCol.className = originalPreviewClasses;
-        previewCol.setAttribute('style', originalPreviewStyle);
-      }
-      if (zoomContainer) {
-        zoomContainer.style.zoom = originalZoom;
-      }
-      window.scrollTo(originalScrollX, originalScrollY);
-      setIsGeneratingPdf(false);
-      setPdfProgressText('');
     }
   };
 
@@ -1093,6 +1109,35 @@ function MainApp() {
             <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.85rem' }}>
               Saving to device storage
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                const previewCol = document.querySelector('.col-preview');
+                const zoomContainer = document.querySelector('.preview-zoom-container');
+                if (previewCol) {
+                  previewCol.classList.remove('pdf-capture-mode');
+                  previewCol.removeAttribute('style');
+                }
+                if (zoomContainer) {
+                  zoomContainer.removeAttribute('style');
+                }
+                setIsGeneratingPdf(false);
+                setPdfProgressText('');
+              }}
+              style={{
+                marginTop: '1rem',
+                background: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                color: '#e2e8f0',
+                padding: '0.35rem 1rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}
