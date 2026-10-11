@@ -15,9 +15,11 @@ export default function BillPreview({ data, previewRef }) {
     const lines = desc.split('\n');
     let lineCount = 0;
     for (const line of lines) {
-      lineCount += Math.max(1, Math.ceil(line.length / 50));
+      // 60% of A4 width (~410px) fits ~65 chars of 11px Arial per line
+      lineCount += Math.max(1, Math.ceil(line.length / 65));
     }
-    return Math.max(30, 14 + lineCount * 17);
+    // padding (8px) + lineCount * 16px line-height + border
+    return Math.max(26, 8 + lineCount * 16);
   };
 
   const total = calculateTotal();
@@ -33,25 +35,23 @@ export default function BillPreview({ data, previewRef }) {
 
   const rowSpanCount = (hasGST && hasCess) ? 5 : hasGST ? 3 : 2;
 
-  // Space constants (for 297mm A4 with 15mm padding at 96 DPI: ~1006px usable height)
-  const AVAILABLE_PAGE_HEIGHT = 1006;
-  const workNameLines = Math.max(1, Math.ceil((data.workName || '').length / 60));
-  const workInfoHeight = 76 + (workNameLines - 1) * 16;
-  const topFixedContentHeight = 24 + 228 + 42 + workInfoHeight; // Banner (24) + Header Table (228) + thead (42) + work info
+  // Space constants (for 297mm A4 with 15mm padding at 96 DPI: ~1009px usable height)
+  const AVAILABLE_PAGE_HEIGHT = 1009;
+  const workNameLines = Math.max(1, Math.ceil((data.workName || '').length / 65));
+  const workInfoHeight = 56 + (workNameLines - 1) * 16;
+  const topFixedContentHeight = 20 + 192 + 36 + workInfoHeight; // Banner + Header Table + thead + work info row
 
-  const totalsHeight = 32 + (hasGST ? 42 : 0) + (hasCess ? 48 : 0) + 28;
-  const footerHeight = 110;
-  const lastPageBottomHeight = totalsHeight + footerHeight; // Room required by calculations and footer at the bottom
-  const carriedOverRowHeight = 32;
+  const totalsHeight = (hasGST && hasCess) ? 120 : hasGST ? 88 : 56;
+  const footerHeight = 84;
+  const lastPageBottomHeight = totalsHeight + footerHeight; // Room required by calculations and footer at bottom
+  const carriedOverRowHeight = 28;
 
-  // Space available for items on a page that also holds totals & footer (leaving min 25px table spacer)
-  const maxSpaceWithCalculations = Math.max(100, AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight - 25);
-  // Space available for items on an intermediate page (with only Carried Over row at bottom, leaving min 25px spacer)
-  const maxSpaceIntermediate = Math.max(150, AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight - 25);
+  // Space available for items on a page that also holds totals & footer
+  const maxSpaceWithCalculations = AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight - 10;
+  // Space available for items on an intermediate page (with Carried Over row at bottom)
+  const maxSpaceIntermediate = AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight - 10;
 
-  // Pure space-based pagination:
-  // Add items to a page as long as there is physical space.
-  // If an item does not fit, move it to the next page.
+  // Fill the page first, add calculations if space allows; otherwise break to next page
   const pages = [];
   let itemIndex = 0;
 
@@ -60,38 +60,35 @@ export default function BillPreview({ data, previewRef }) {
     const pageItems = [];
     let currentItemsHeight = 0;
 
-    // Check if ALL remaining items can fit on this page together with calculations
+    // 1. Check if ALL remaining items can fit on this page together with calculations & footer
     let allRemainingHeight = 0;
     for (let j = itemIndex; j < safeItems.length; j++) {
       allRemainingHeight += getItemHeight(safeItems[j]);
     }
 
     if (allRemainingHeight <= maxSpaceWithCalculations) {
-      // All remaining items fit on this page with calculations!
+      // All remaining items + calculations fit on this single page!
       for (let j = itemIndex; j < safeItems.length; j++) {
         pageItems.push(safeItems[j]);
       }
       pages.push({
         items: pageItems,
-        startIndex: pageStartIndex
+        startIndex: pageStartIndex,
+        hasCalculations: true
       });
+      itemIndex = safeItems.length;
       break;
     }
 
-    // Otherwise, this page cannot fit everything + calculations, so it's an intermediate page.
-    // Fill this page with as many items as physically fit in maxSpaceIntermediate!
-    // (Must leave at least 1 item for subsequent pages where calculations will be placed)
+    // 2. If not all remaining items fit with calculations:
+    // Fill this page with as many items as can physically fit!
     while (itemIndex < safeItems.length) {
       const item = safeItems[itemIndex];
       const h = getItemHeight(item);
-      const remainingAfterThis = safeItems.length - (itemIndex + 1);
 
-      // If adding this item exceeds intermediate space, or if taking all remaining would leave 0 items for calculations
-      const exceedsSpace = currentItemsHeight + h > maxSpaceIntermediate;
-      const leavesNoItemForNext = remainingAfterThis === 0 && currentItemsHeight + h > maxSpaceWithCalculations;
-
-      if (pageItems.length > 0 && (exceedsSpace || leavesNoItemForNext)) {
-        break; // Page has no more space for this item, stop and move to next page!
+      // Stop adding if this item would exceed intermediate page space
+      if (pageItems.length > 0 && (currentItemsHeight + h > maxSpaceIntermediate)) {
+        break;
       }
 
       pageItems.push(item);
@@ -99,14 +96,31 @@ export default function BillPreview({ data, previewRef }) {
       itemIndex++;
     }
 
+    // If after filling items, all items fit and calculations can also squeeze in:
+    if (itemIndex === safeItems.length && currentItemsHeight <= maxSpaceWithCalculations) {
+      pages.push({
+        items: pageItems,
+        startIndex: pageStartIndex,
+        hasCalculations: true
+      });
+      break;
+    }
+
+    // Otherwise, this is an intermediate page
     pages.push({
       items: pageItems,
-      startIndex: pageStartIndex
+      startIndex: pageStartIndex,
+      hasCalculations: false
     });
   }
 
-  if (pages.length === 0) {
-    pages.push({ items: safeItems, startIndex: 0 });
+  // If the last page does not have calculations, add a page for calculations & footer
+  if (pages.length === 0 || !pages[pages.length - 1].hasCalculations) {
+    pages.push({
+      items: [],
+      startIndex: safeItems.length,
+      hasCalculations: true
+    });
   }
 
   // Indian Currency Number to Words converter
@@ -158,12 +172,12 @@ export default function BillPreview({ data, previewRef }) {
     <div className="preview-card" style={{ overflowX: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--preview-container-bg)' }} ref={previewRef}>
       {pages.map((pageData, pageIndex) => {
         const pageItems = pageData.items;
-        const isLastPage = pageIndex === pages.length - 1;
+        const isLastPage = pageData.hasCalculations;
         const pageItemsHeight = pageItems.reduce((sum, item) => sum + getItemHeight(item), 0);
         const availableTableSpace = isLastPage
           ? AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - lastPageBottomHeight
           : AVAILABLE_PAGE_HEIGHT - topFixedContentHeight - carriedOverRowHeight;
-        const spacerHeight = Math.max(30, availableTableSpace - pageItemsHeight);
+        const spacerHeight = Math.max(25, availableTableSpace - pageItemsHeight);
         
         return (
           <div
@@ -290,21 +304,33 @@ export default function BillPreview({ data, previewRef }) {
                   </tr>
                   
                   {/* Items */}
-                  {pageItems.map((item, index) => {
-                    const globalIndex = (pageData.startIndex ?? 0) + index;
-                    return (
-                      <tr key={globalIndex}>
-                        <td className="text-center">{globalIndex + 1}</td>
-                        <td>{item.desc}</td>
-                        <td className="text-center">{item.rate}</td>
-                        <td className="text-center">
-                          <div>{item.qty}</div>
-                          <div style={{ fontSize: '9px', marginTop: '2px' }}>{item.unit || 'Nos'}</div>
-                        </td>
-                        <td className="text-right">{item.amount}</td>
-                      </tr>
-                    );
-                  })}
+                  {pageItems.length === 0 ? (
+                    <tr>
+                      <td className="text-center" style={{ padding: '6px' }}>-</td>
+                      <td colSpan="3" style={{ padding: '6px', fontStyle: 'italic', fontWeight: 'bold' }}>
+                        Brought Forward from Page {pageIndex} (Details Continued)
+                      </td>
+                      <td className="text-right font-bold" style={{ padding: '6px' }}>
+                        {total.toFixed(2)}
+                      </td>
+                    </tr>
+                  ) : (
+                    pageItems.map((item, index) => {
+                      const globalIndex = (pageData.startIndex ?? 0) + index;
+                      return (
+                        <tr key={globalIndex}>
+                          <td className="text-center">{globalIndex + 1}</td>
+                          <td>{item.desc}</td>
+                          <td className="text-center">{item.rate}</td>
+                          <td className="text-center">
+                            <div>{item.qty}</div>
+                            <div style={{ fontSize: '9px', marginTop: '2px' }}>{item.unit || 'Nos'}</div>
+                          </td>
+                          <td className="text-right">{item.amount}</td>
+                        </tr>
+                      );
+                    })
+                  )}
                   
                   {/* Single vertical spacer row extending column borders in the middle */}
                   <tr style={{ height: `${spacerHeight}px` }}>
