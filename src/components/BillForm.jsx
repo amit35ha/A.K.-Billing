@@ -497,25 +497,25 @@ export default function BillForm({ data, onChange, onViewPreview }) {
           <button
             type="button"
             className="btn"
-            onClick={() => onChange({ ...data, billType: 'Part Bill', partBillNumber: data.partBillNumber || '1st' })}
+            onClick={() => onChange({ ...data, billType: 'RA Bill', partBillNumber: data.partBillNumber || '1st' })}
             style={{
               padding: '0.5rem 1.15rem',
               fontSize: '0.9rem',
               fontWeight: 600,
               borderRadius: '6px',
-              border: data.billType === 'Part Bill' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-              background: data.billType === 'Part Bill' ? '#eff6ff' : '#ffffff',
-              color: data.billType === 'Part Bill' ? '#1d4ed8' : '#475569',
+              border: (data.billType === 'RA Bill' || data.billType === 'Part Bill') ? '2px solid #2563eb' : '1px solid #cbd5e1',
+              background: (data.billType === 'RA Bill' || data.billType === 'Part Bill') ? '#eff6ff' : '#ffffff',
+              color: (data.billType === 'RA Bill' || data.billType === 'Part Bill') ? '#1d4ed8' : '#475569',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
           >
-            Part Bill
+            RA Bill
           </button>
 
-          {data.billType === 'Part Bill' && (
+          {(data.billType === 'RA Bill' || data.billType === 'Part Bill') && (
             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginLeft: '0.5rem', paddingLeft: '0.75rem', borderLeft: '2px solid #e2e8f0', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Select Part:</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Select RA:</span>
               {['1st', '2nd', '3rd'].map((part) => (
                 <button
                   key={part}
@@ -693,6 +693,18 @@ export default function BillForm({ data, onChange, onViewPreview }) {
             placeholder="e.g. EB/554/26"
           />
         </div>
+      </div>
+
+      <div className="form-group">
+        <label>Bill No. (Contractor's Bill)</label>
+        <input
+          type="text"
+          className="form-control"
+          name="billNo"
+          value={data.billNo || ''}
+          onChange={handleChange}
+          placeholder="e.g. 01/2026-27"
+        />
       </div>
 
       <div className="grid-2">

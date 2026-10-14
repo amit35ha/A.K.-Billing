@@ -178,8 +178,9 @@ export default function BillPreview({ data, previewRef }) {
     return (result.trim() || 'Zero') + ' Rupees Only/-';
   };
 
-  const billTypeLabel = (data.billType === 'Part Bill')
-    ? `${(data.partBillNumber || '1st').toUpperCase()} PART BILL`
+  const isRABill = data.billType === 'RA Bill' || data.billType === 'Part Bill';
+  const billTypeLabel = isRABill
+    ? `${(data.partBillNumber || '1st').toUpperCase()} RA BILL`
     : 'FINAL BILL';
 
   return (
@@ -287,6 +288,9 @@ export default function BillPreview({ data, previewRef }) {
                     <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '2px', display: 'flex', justifyContent: 'center', gap: '80px' }}>
                       <span>GSTIN: {data.gstin || ''}</span>
                       <span>PAN:- {data.pan || ''}</span>
+                    </div>
+                    <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '2px', textAlign: 'center' }}>
+                      <span>Bill No. : {data.billNo || ''}</span>
                     </div>
                   </td>
                 </tr>

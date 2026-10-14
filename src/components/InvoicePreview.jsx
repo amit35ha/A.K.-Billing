@@ -61,8 +61,9 @@ export default function InvoicePreview({ data, previewRef }) {
 
   const invoiceNo = data.invoiceNo || '-';
   const invoiceDate = data.invoiceDate || '-';
-  const billTypeLabel = data.billType === 'Part Bill'
-    ? `${data.partBillNumber || '1st'} PART BILL`
+  const isRABill = data.billType === 'RA Bill' || data.billType === 'Part Bill';
+  const billTypeLabel = isRABill
+    ? `${data.partBillNumber || '1st'} RA BILL`
     : 'FINAL BILL';
 
 

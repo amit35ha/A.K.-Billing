@@ -32,6 +32,7 @@ const defaultBillData = {
   mbPageNo: '',
   ubnNo: '',
   ebNo: '',
+  billNo: '',
   invoiceNo: '',
   invoiceDate: '',
   items: [
@@ -174,9 +175,10 @@ function MainApp() {
 
   const getBillIdentifier = (data) => {
     const rawOrder = (data.workOrderNo || '').trim() || 'Draft';
-    if (data.billType === 'Part Bill') {
+    const isRA = data.billType === 'RA Bill' || data.billType === 'Part Bill';
+    if (isRA) {
       const part = (data.partBillNumber || '1st').trim();
-      return `${rawOrder} (${part} Part Bill)`;
+      return `${rawOrder} (${part} RA Bill)`;
     }
     return rawOrder;
   };
@@ -267,8 +269,10 @@ function MainApp() {
           const raw = (rawOrder || 'draft').toLowerCase();
           return savedWo === raw || savedWo === `${raw} (final bill)`;
         } else {
-          const partPattern = `${(rawOrder || 'draft').toLowerCase()} (${(billData.partBillNumber || '1st').toLowerCase()} part bill)`;
-          return savedWo === partPattern;
+          const partStr = (billData.partBillNumber || '1st').toLowerCase();
+          const raPattern = `${(rawOrder || 'draft').toLowerCase()} (${partStr} ra bill)`;
+          const partPattern = `${(rawOrder || 'draft').toLowerCase()} (${partStr} part bill)`;
+          return savedWo === raPattern || savedWo === partPattern;
         }
       }) : null;
 
@@ -393,10 +397,10 @@ function MainApp() {
         return;
       }
 
-      const rawOrderNo = rawSavedWO.replace(/\s*\((Final Bill|.*Part Bill)\)$/i, '').trim();
-      const partMatch = rawSavedWO.match(/\((.*?) Part Bill\)/i);
-      const isPart = Boolean(partMatch) || rawData.billType === 'Part Bill';
-      const billType = isPart ? 'Part Bill' : 'Final Bill';
+      const rawOrderNo = rawSavedWO.replace(/\s*\((Final Bill|.*RA Bill|.*Part Bill)\)$/i, '').trim();
+      const partMatch = rawSavedWO.match(/\((.*?) (?:RA|Part) Bill\)/i);
+      const isPart = Boolean(partMatch) || rawData.billType === 'RA Bill' || rawData.billType === 'Part Bill';
+      const billType = isPart ? 'RA Bill' : 'Final Bill';
       const partBillNumber = rawData.partBillNumber || (partMatch ? partMatch[1] : '1st');
 
       const loadedItems = Array.isArray(rawData.items) && rawData.items.length > 0
@@ -415,7 +419,7 @@ function MainApp() {
       setLoadedBillId(id);
       setShowSaved(false);
       setActiveDoc('bill');
-      await showAlert(`Loaded ${billType === 'Part Bill' ? `${partBillNumber} Part Bill` : 'Final Bill'} for Work Order: ${rawOrderNo || 'Draft'}`, {
+      await showAlert(`Loaded ${billType === 'RA Bill' ? `${partBillNumber} RA Bill` : 'Final Bill'} for Work Order: ${rawOrderNo || 'Draft'}`, {
         title: 'Bill Loaded',
         type: 'success'
       });
@@ -870,12 +874,12 @@ function MainApp() {
 
           <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {savedBills.map((bill) => {
-              const isPart = bill.workOrderNo && /part bill/i.test(bill.workOrderNo);
-              const partMatch = bill.workOrderNo ? bill.workOrderNo.match(/\((.*?) Part Bill\)/i) : null;
+              const isPart = bill.workOrderNo && /(?:ra|part) bill/i.test(bill.workOrderNo);
+              const partMatch = bill.workOrderNo ? bill.workOrderNo.match(/\((.*?) (?:RA|Part) Bill\)/i) : null;
               const cleanWO = bill.workOrderNo
-                ? bill.workOrderNo.replace(/\s*\((Final Bill|.*Part Bill)\)$/i, '').trim()
+                ? bill.workOrderNo.replace(/\s*\((Final Bill|.*RA Bill|.*Part Bill)\)$/i, '').trim()
                 : 'Draft';
-              const typeLabel = isPart ? (partMatch ? `${partMatch[1]} Part Bill` : 'Part Bill') : 'Final Bill';
+              const typeLabel = isPart ? (partMatch ? `${partMatch[1]} RA Bill` : 'RA Bill') : 'Final Bill';
 
               return (
                 <li
